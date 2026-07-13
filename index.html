@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#090d0f">
+<title>UMFL — Underground Mutant Fighting League</title>
+<style>
+:root{
+  --bg:#080c0e;--panel:#10171a;--panel2:#151f23;--line:#29363b;--gold:#f2b632;
+  --gold2:#ffcf57;--red:#e55245;--green:#50c878;--blue:#4db5ff;--text:#f5f1e8;
+  --muted:#9aa7ad;--purple:#b06cff;--shadow:0 12px 36px rgba(0,0,0,.42)
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:
+radial-gradient(circle at 50% -10%,#183038 0,#0c1316 34%,#070a0c 72%);
+color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+min-height:100%;overscroll-behavior:none}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button{font:inherit}
+#app{max-width:560px;margin:0 auto;min-height:100vh;position:relative}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
+padding:12px 14px;background:rgba(7,10,12,.9);backdrop-filter:blur(14px);border-bottom:1px solid #263238}
+.brand{display:flex;gap:10px;align-items:center}
+.brandmark{width:38px;height:38px;border:1px solid #536268;border-radius:10px;display:grid;place-items:center;
+background:linear-gradient(145deg,#1c292e,#0a0e10);font-weight:900;color:var(--gold)}
+.brand h1{font-size:16px;margin:0;letter-spacing:.08em}
+.version{font-size:11px;color:var(--muted)}
+.currency{display:flex;gap:8px;font-weight:800;font-size:13px}
+.pill{padding:8px 10px;border:1px solid #344247;border-radius:999px;background:#11191c}
+main{padding:14px 14px 96px}
+.hero{min-height:72vh;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:28px 8px}
+.logo{font-size:58px;font-weight:1000;line-height:.9;letter-spacing:.04em;text-shadow:0 6px 30px rgba(242,182,50,.18)}
+.subtitle{font-weight:800;letter-spacing:.18em;font-size:12px;color:#d8d0c0;margin-top:10px}
+.hero-art{margin:30px auto 24px;width:min(86vw,420px);height:230px;border:1px solid #344349;border-radius:24px;
+background:
+linear-gradient(rgba(0,0,0,.1),rgba(0,0,0,.7)),
+repeating-linear-gradient(90deg,transparent 0 42px,rgba(255,255,255,.025) 43px 44px),
+radial-gradient(circle at 50% 44%,#294b54 0,#17262b 29%,#0b1012 68%);
+box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero-art:before,.hero-art:after{content:"";position:absolute;bottom:0;width:42%;height:65%;background:linear-gradient(transparent,#050708)}
+.hero-art:before{left:0;clip-path:polygon(0 100%,0 30%,28% 0,44% 32%,61% 4%,76% 42%,100% 19%,100% 100%)}
+.hero-art:after{right:0;transform:scaleX(-1);clip-path:polygon(0 100%,0 30%,28% 0,44% 32%,61% 4%,76% 42%,100% 19%,100% 100%)}
+.cage{position:absolute;inset:18px 38px;border:4px solid rgba(174,202,211,.12);border-radius:50% 50% 14px 14px;
+box-shadow:inset 0 0 40px #000}
+.fighter-silhouette{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);font-size:118px;filter:grayscale(1) brightness(.2)}
+.btn{width:100%;border:1px solid #5f4b1d;border-radius:12px;padding:15px 18px;font-weight:1000;letter-spacing:.04em;
+color:#161005;background:linear-gradient(#ffd263,#e5a81f);box-shadow:0 8px 18px rgba(242,182,50,.2);text-transform:uppercase}
+.btn:active{transform:translateY(1px)}
+.btn.secondary{color:var(--text);background:#121a1d;border-color:#344349;box-shadow:none}
+.btn.danger{background:linear-gradient(#f07a69,#c73e33);color:white;border-color:#7d2b25}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.section-title{font-weight:1000;letter-spacing:.08em;text-transform:uppercase;font-size:20px;margin:12px 0}
+.card{background:linear-gradient(180deg,#141d21,#0e1417);border:1px solid #2f3c41;border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+.muted{color:var(--muted)}
+.screen-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.back{width:42px;height:42px;border-radius:12px;background:#11191c;color:white;border:1px solid #334046;font-size:22px}
+.wheel-card{margin-bottom:12px}
+.wheel-label{display:flex;align-items:center;justify-content:space-between;font-weight:900;margin-bottom:10px}
+.wheel{height:118px;border-radius:16px;border:1px solid #3d4b50;background:
+radial-gradient(circle,#24343a 0,#11181b 58%,#090d0f 100%);display:flex;align-items:center;justify-content:center;gap:10px;overflow:hidden}
+.wheel-item{width:74px;height:74px;border-radius:50%;border:2px solid #66777e;background:#172126;display:grid;place-items:center;
+font-size:39px;opacity:.42;transform:scale(.82)}
+.wheel-item.active{opacity:1;border-color:var(--gold);transform:scale(1.08);box-shadow:0 0 24px rgba(242,182,50,.24)}
+.wheel-name{text-align:center;font-weight:1000;margin-top:8px;color:var(--gold2)}
+.smallbtn{border:1px solid #3b484d;background:#11191c;color:white;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:900}
+.smallbtn:disabled{opacity:.35}
+.mutant-card{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:center}
+.portrait{aspect-ratio:1/1;border-radius:18px;border:1px solid #415058;background:
+radial-gradient(circle at 50% 35%,#23404a,#0d1518 63%,#080b0c);overflow:hidden;display:grid;place-items:center}
+.portrait svg{width:100%;height:100%}
+.mutant-name{font-size:24px;font-weight:1000;line-height:1}
+.mutant-code{color:var(--gold);font-size:12px;font-weight:900;letter-spacing:.08em;margin-top:5px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}
+.stat{padding:8px;border:1px solid #303e43;border-radius:10px;background:#0d1315;font-size:12px}
+.stat b{display:block;font-size:16px}
+.ability{margin-top:12px;padding:12px;border-left:3px solid var(--purple);background:#11161a;border-radius:8px}
+.attacks{display:grid;gap:8px;margin-top:12px}
+.attack{display:flex;align-items:center;justify-content:space-between;padding:11px;border:1px solid #2d3a3f;border-radius:10px;background:#0d1315}
+.bracket{display:grid;gap:10px}
+.match{display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid #2e3a3f;border-radius:12px;background:#10171a}
+.match.current{border-color:var(--gold);box-shadow:0 0 0 1px rgba(242,182,50,.2)}
+.team-row{display:flex;gap:8px;align-items:center}
+.mini{width:42px;height:42px;border-radius:9px;overflow:hidden;border:1px solid #45545a;background:#172126}
+.battle-stage{min-height:350px;border:1px solid #344349;border-radius:18px;background:
+linear-gradient(rgba(0,0,0,.15),rgba(0,0,0,.68)),
+repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.025) 47px 48px),
+radial-gradient(circle at 50% 45%,#28505a 0,#142429 32%,#090d0f 73%);
+position:relative;overflow:hidden;padding:18px 10px 96px}
+.side{position:absolute;bottom:82px;width:48%;display:flex;align-items:end;gap:3px}
+.side.left{left:4px;justify-content:flex-end}.side.right{right:4px;justify-content:flex-start}
+.fighter{width:31%;max-width:90px;position:relative;text-align:center;transition:.2s}
+.fighter.target{filter:drop-shadow(0 0 10px #ff695b)}
+.fighter.dead{filter:grayscale(1);opacity:.25}
+.hpbar{height:7px;background:#2a3134;border-radius:99px;overflow:hidden;margin-bottom:4px}
+.hpbar i{display:block;height:100%;background:linear-gradient(90deg,#4bc879,#8be08e);transition:.25s}
+.fname{font-size:9px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.turnstrip{display:flex;gap:5px;overflow:hidden;padding:9px;background:#0b1012;border:1px solid #2e3a3f;border-radius:12px;margin:10px 0}
+.turntoken{min-width:40px;height:40px;border-radius:9px;border:1px solid #425158;overflow:hidden}
+.actionlog{height:74px;overflow:auto;font-size:12px;color:#bac4c8;padding:8px;background:#0b1012;border-radius:10px;border:1px solid #28353a}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.action{padding:12px;text-align:left;border:1px solid #354349;border-radius:11px;background:#11191c;color:white}
+.action b{display:block}.action small{color:var(--muted)}
+.nav{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:30;width:min(560px,100%);
+display:grid;grid-template-columns:repeat(4,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+background:rgba(7,10,12,.94);backdrop-filter:blur(14px);border-top:1px solid #28353a}
+.nav button{background:none;border:0;color:#849198;padding:6px;font-size:11px;font-weight:800}
+.nav button.active{color:var(--gold)}
+.nav span{display:block;font-size:21px}
+.choice{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:center;padding:12px;border:1px solid #344349;border-radius:14px;background:#10171a;margin-bottom:10px}
+.progress{height:9px;border-radius:99px;background:#273238;overflow:hidden}.progress i{display:block;height:100%;background:var(--gold)}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bigstat{padding:14px;border:1px solid #2e3a3f;border-radius:13px;background:#10171a}.bigstat b{font-size:23px;display:block}
+.leader-row{display:grid;grid-template-columns:42px 1fr auto;gap:10px;padding:12px 8px;border-bottom:1px solid #263238;align-items:center}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:100;background:#182227;border:1px solid #46565d;
+padding:12px 16px;border-radius:999px;box-shadow:var(--shadow);font-weight:800;opacity:0;pointer-events:none;transition:.2s}
+.toast.show{opacity:1}
+@media (max-width:390px){.logo{font-size:50px}.mutant-card{grid-template-columns:112px 1fr}.portrait{border-radius:15px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+<script>
+const VERSION='v0.1.0';
+const PRIMARY=[
+['Bear','🐻',{hp:145,atk:119,def:120,spd:68}],['Wolf','🐺',{hp:105,atk:110,def:82,spd:118}],
+['Shark','🦈',{hp:128,atk:125,def:86,spd:91}],['Tiger','🐯',{hp:112,atk:128,def:78,spd:116}],
+['Gorilla','🦍',{hp:138,atk:126,def:103,spd:74}],['Rhino','🦏',{hp:151,atk:116,def:132,spd:57}],
+['Crocodile','🐊',{hp:142,atk:121,def:116,spd:62}],['Lion','🦁',{hp:121,atk:124,def:91,spd:103}],
+['Elephant','🐘',{hp:166,atk:111,def:136,spd:48}],['Hippo','🦛',{hp:158,atk:118,def:129,spd:52}],
+['Panther','🐆',{hp:104,atk:122,def:72,spd:129}],['Boar','🐗',{hp:132,atk:113,def:101,spd:79}],
+['Bison','🦬',{hp:149,atk:117,def:118,spd:63}],['Komodo','🦎',{hp:118,atk:113,def:92,spd:89}],
+['Hyena','🐕',{hp:111,atk:114,def:80,spd:111}],['Moose','🫎',{hp:137,atk:112,def:104,spd:82}],
+['Orca','🐋',{hp:147,atk:128,def:99,spd:83}],['Cobra','🐍',{hp:91,atk:118,def:61,spd:132}],
+['Eagle','🦅',{hp:96,atk:116,def:69,spd:137}],['Ram','🐏',{hp:126,atk:115,def:108,spd:87}],
+['Jaguar','🐆',{hp:108,atk:126,def:76,spd:124}],['Walrus','🦭',{hp:153,atk:106,def:125,spd:54}],
+['Kangaroo','🦘',{hp:116,atk:114,def:78,spd:121}],['Buffalo','🐃',{hp:146,atk:120,def:115,spd:66}]
+];
+const SECONDARY=[
+['Rabbit','🐇',{hp:0,atk:2,def:-2,spd:20}],['Owl','🦉',{hp:-2,atk:7,def:2,spd:8}],
+['Gopher','🐹',{hp:7,atk:0,def:7,spd:1}],['Crow','🐦‍⬛',{hp:-1,atk:5,def:0,spd:10}],
+['Scorpion','🦂',{hp:0,atk:12,def:4,spd:-2}],['Porcupine','🦔',{hp:5,atk:3,def:12,spd:-5}],
+['Bat','🦇',{hp:-4,atk:3,def:-2,spd:15}],['Frog','🐸',{hp:3,atk:2,def:3,spd:8}],
+['Mantis','🦗',{hp:-3,atk:11,def:-3,spd:11}],['Turtle','🐢',{hp:10,atk:-3,def:16,spd:-12}],
+['Rat','🐀',{hp:2,atk:5,def:0,spd:9}],['Fox','🦊',{hp:0,atk:4,def:1,spd:12}],
+['Hawk','🦅',{hp:-2,atk:9,def:0,spd:10}],['Badger','🦡',{hp:8,atk:7,def:8,spd:-2}],
+['Lizard','🦎',{hp:1,atk:4,def:4,spd:7}],['Snake','🐍',{hp:-2,atk:8,def:-2,spd:13}],
+['Raccoon','🦝',{hp:3,atk:3,def:3,spd:6}],['Squirrel','🐿️',{hp:-1,atk:1,def:0,spd:16}],
+['Crab','🦀',{hp:5,atk:2,def:13,spd:-8}],['Hummingbird','🐦',{hp:-5,atk:0,def:-5,spd:23}],
+['Mole','🐹',{hp:8,atk:4,def:9,spd:-4}],['Bee','🐝',{hp:-3,atk:7,def:-3,spd:14}],
+['Chameleon','🦎',{hp:0,atk:2,def:6,spd:7}],['Skunk','🦨',{hp:4,atk:3,def:4,spd:2}]
+];
+const ABILITIES=[
+{name:'Flaming Blood',icon:'🔥',desc:'Taking damage burns the attacker.',onHitTaken:'burn'},
+{name:'Venom Glands',icon:'☠️',desc:'Attacks have a 25% chance to poison.',onAttack:'poison'},
+{name:'Glass Cannon',icon:'💥',desc:'+28% ATK, -22% DEF.',mods:{atk:1.28,def:.78}},
+{name:'Iron Hide',icon:'🛡️',desc:'+24% DEF, -8% SPD.',mods:{def:1.24,spd:.92}},
+{name:'Adrenal Surge',icon:'⚡',desc:'Below 40% HP, gain 35% SPD.',lowHpSpeed:1.35},
+{name:'Regenerator',icon:'🧬',desc:'Recover 6% max HP after acting.',regen:.06},
+{name:'Berserker',icon:'🩸',desc:'Gain attack as HP falls.',berserk:true},
+{name:'Second Heart',icon:'❤️‍🔥',desc:'Revive once at 25% HP.',revive:true},
+{name:'Thorned',icon:'🦔',desc:'Reflect 18% physical damage.',reflect:.18},
+{name:'Predator Focus',icon:'👁️',desc:'+20% damage against targets below half HP.',execute:1.2},
+{name:'Momentum',icon:'🏃',desc:'Each action grants +6% SPD, up to 30%.',momentum:true},
+{name:'Vampiric Bite',icon:'🧛',desc:'Heal for 16% of damage dealt.',lifesteal:.16},
+{name:'Toxic Skin',icon:'🧪',desc:'Enemies that hit this mutant may be poisoned.',onHitTaken:'poison'},
+{name:'Unstable Core',icon:'☢️',desc:'Deal 18% more damage but lose 3% max HP after acting.',unstable:true},
+{name:'Pack Hunter',icon:'🐾',desc:'+10% damage for each living ally.',pack:true},
+{name:'Stonewall',icon:'🧱',desc:'First incoming hit each battle deals 55% less damage.',firstGuard:true},
+{name:'Quick Reflexes',icon:'💨',desc:'18% chance to evade attacks.',evade:.18},
+{name:'Critical Mass',icon:'🎯',desc:'18% critical chance for 175% damage.',crit:.18},
+{name:'Counterstrike',icon:'↩️',desc:'20% chance to counter after being hit.',counter:.20},
+{name:'Frenzy',icon:'🌀',desc:'Defeating an enemy immediately fills 45% of the action gauge.',frenzy:true}
+];
+const ATTACKS=[
+{name:'Crushing Blow',power:44,recovery:100,icon:'💢'}, {name:'Quick Jab',power:27,recovery:70,icon:'⚡'},
+{name:'Savage Bite',power:38,recovery:85,icon:'🦷'}, {name:'Rending Claw',power:35,recovery:80,icon:'🗡️'},
+{name:'Body Slam',power:48,recovery:115,icon:'💥'}, {name:'Tail Sweep',power:31,recovery:78,icon:'🌀'},
+{name:'Pounce',power:34,recovery:72,icon:'🐾'}, {name:'Gore',power:42,recovery:96,icon:'🦬'},
+{name:'Venom Strike',power:30,recovery:88,icon:'☠️'}, {name:'Dive Attack',power:36,recovery:76,icon:'🦅'},
+{name:'Burrow Rush',power:29,recovery:68,icon:'🕳️'}, {name:'Bone Breaker',power:51,recovery:125,icon:'🦴'}
+];
+const TIERS=[
+{name:'Qualifier',size:4,team:1,wins:2,mult:0.78},
+{name:'Bronze',size:8,team:2,wins:3,mult:0.9},
+{name:'Silver',size:16,team:3,wins:4,mult:1},
+{name:'Gold',size:32,team:3,wins:5,mult:1.12},
+{name:'Platinum',size:64,team:3,wins:6,mult:1.24},
+{name:'Elite',size:128,team:3,wins:7,mult:1.38},
+{name:'Championship',size:256,team:3,wins:8,mult:1.55}
+];
+const defaultSave={credits:300,bestTier:0,totalRuns:0,totalWins:0,totalLosses:0,totalKOs:0,totalDamage:0,totalTaken:0,recruited:0,longestStreak:0,currentStreak:0,championships:0,history:[],leaderboard:[]};
+let save=Object.assign({},defaultSave,JSON.parse(localStorage.getItem('umfl-save')||'{}'));
+let state={screen:'home',run:null,rolls:null};
+const $=s=>document.querySelector(s);
+function persist(){localStorage.setItem('umfl-save',JSON.stringify(save))}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1800)}
+function rng(seed){let t=seed>>>0;return()=>((t=Math.imul(t^t>>>15,t|1),t^=t+Math.imul(t^t>>>7,t|61),((t^t>>>14)>>>0)/4294967296))}
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return h>>>0}
+function pick(a,r=Math.random){return a[Math.floor(r()*a.length)]}
+function makeMutant(seed=String(Date.now()+Math.random())){
+ const r=rng(hash(seed)); const p=pick(PRIMARY,r),s=pick(SECONDARY,r),ab=pick(ABILITIES,r);
+ const variance=()=>.94+r()*.12;
+ let stats={hp:Math.round((p[2].hp+s[2].hp)*variance()),atk:Math.round((p[2].atk+s[2].atk)*variance()),
+ def:Math.round((p[2].def+s[2].def)*variance()),spd:Math.round((p[2].spd+s[2].spd)*variance())};
+ if(ab.mods)for(const k in ab.mods)stats[k]=Math.round(stats[k]*ab.mods[k]);
+ const attacks=[]; while(attacks.length<4){const a=pick(ATTACKS,r);if(!attacks.find(x=>x.name===a.name))attacks.push({...a})}
+ const name=(p[0].slice(0,Math.ceil(p[0].length/2))+s[0].slice(Math.floor(s[0].length/2))).replace(/\s/g,'');
+ return {id:seed,name,primary:p[0],primaryIcon:p[1],secondary:s[0],secondaryIcon:s[1],ability:{...ab},stats,attacks,seed};
+}
+function portrait(m,mini=false){
+ const a=hash(m.seed)%360,b=(a+70)%360;
+ return `<svg viewBox="0 0 200 200" aria-label="${m.name}">
+ <defs><radialGradient id="g${m.id.replace(/\W/g,'')}" cx="50%" cy="35%"><stop offset="0" stop-color="hsl(${a} 45% 48%)"/><stop offset="1" stop-color="hsl(${b} 35% 16%)"/></radialGradient></defs>
+ <circle cx="100" cy="100" r="96" fill="url(#g${m.id.replace(/\W/g,'')})"/>
+ <ellipse cx="100" cy="118" rx="60" ry="52" fill="rgba(5,8,9,.48)"/>
+ <text x="100" y="112" text-anchor="middle" font-size="${mini?70:82}">${m.primaryIcon}</text>
+ <text x="145" y="150" text-anchor="middle" font-size="${mini?34:42}">${m.secondaryIcon}</text>
+ <circle cx="156" cy="45" r="24" fill="#0b1114" stroke="#f2b632" stroke-width="3"/>
+ <text x="156" y="53" text-anchor="middle" font-size="24">${m.ability.icon}</text></svg>`;
+}
+function header(){return `<div class="topbar"><div class="brand"><div class="brandmark">U</div><div><h1>UMFL</h1><div class="version">${VERSION}</div></div></div><div class="currency"><div class="pill">◆ ${save.credits}</div></div></div>`}
+function nav(active='home'){return `<div class="nav">
+<button class="${active==='arena'?'active':''}" onclick="go('home')"><span>🥊</span>Arena</button>
+<button class="${active==='mutants'?'active':''}" onclick="go('roster')"><span>🧬</span>Mutants</button>
+<button class="${active==='home'?'active':''}" onclick="go('home')"><span>⌂</span>Home</button>
+<button class="${active==='stats'?'active':''}" onclick="go('stats')"><span>▥</span>Stats</button></div>`}
+function render(){
+ let html=header(); const s=state.screen;
+ if(s==='home')html+=home();
+ if(s==='wheels')html+=wheels();
+ if(s==='mutant')html+=mutantScreen();
+ if(s==='bracket')html+=bracketScreen();
+ if(s==='battle')html+=battleScreen();
+ if(s==='reward')html+=rewardScreen();
+ if(s==='roster')html+=rosterScreen();
+ if(s==='stats')html+=statsScreen();
+ if(s==='leaderboard')html+=leaderboardScreen();
+ $('#app').innerHTML=html+(s==='battle'||s==='wheels'||s==='mutant'||s==='bracket'||s==='reward'?'':nav(s==='stats'||s==='leaderboard'?'stats':s==='roster'?'mutants':s==='home'?'home':'arena'));
+}
+function home(){return `<main><section class="hero"><div class="logo">UMFL</div><div class="subtitle">UNDERGROUND MUTANT FIGHTING LEAGUE</div>
+<div class="hero-art"><div class="cage"></div><div class="fighter-silhouette">🧬</div></div>
+<button class="btn" onclick="startRun()">Enter Arena</button><div class="grid2" style="margin-top:10px">
+<button class="btn secondary" onclick="go('leaderboard')">Leaderboards</button><button class="btn secondary" onclick="go('stats')">Career Stats</button></div>
+<p class="muted" style="font-size:12px;margin-top:18px">Every run begins at Qualifier. Build your roster by defeating and recruiting exact enemy mutants.</p>
+</section></main>`}
+function startRun(){state.rolls={primary:pick(PRIMARY),secondary:pick(SECONDARY),ability:pick(ABILITIES),rerolls:2};state.run=null;state.screen='wheels';save.totalRuns++;persist();render()}
+function spin(kind){
+ if(state.rolls.rerolls<=0)return toast('No rerolls remaining');
+ const costs={primary:140,secondary:90,ability:120}; if(save.credits<costs[kind])return toast('Not enough credits');
+ save.credits-=costs[kind];state.rolls.rerolls--;state.rolls[kind]=pick(kind==='primary'?PRIMARY:kind==='secondary'?SECONDARY:ABILITIES);persist();render()
+}
+function wheelRow(kind,title,data,cost){
+ const pool=kind==='primary'?PRIMARY:kind==='secondary'?SECONDARY:ABILITIES;
+ const idx=pool.indexOf(data);const prev=pool[(idx-1+pool.length)%pool.length],next=pool[(idx+1)%pool.length];
+ const icon=x=>kind==='ability'?x.icon:x[1],name=kind==='ability'?data.name:data[0];
+ return `<div class="card wheel-card"><div class="wheel-label"><span>${title}</span><button class="smallbtn" onclick="spin('${kind}')" ${state.rolls.rerolls<=0?'disabled':''}>REROLL ◆${cost}</button></div>
+ <div class="wheel"><div class="wheel-item">${icon(prev)}</div><div class="wheel-item active">${icon(data)}</div><div class="wheel-item">${icon(next)}</div></div>
+ <div class="wheel-name">${name}</div></div>`;
+}
+function wheels(){return `<main><div class="screen-head"><button class="back" onclick="go('home')">‹</button><div class="section-title">Create Your Mutant</div><span></span></div>
+${wheelRow('primary','1 · PRIMARY ANIMAL',state.rolls.primary,140)}
+${wheelRow('secondary','2 · SECONDARY ANIMAL',state.rolls.secondary,90)}
+${wheelRow('ability','3 · MUTATION',state.rolls.ability,120)}
+<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b>Rerolls remaining</b><b style="color:var(--gold)">${state.rolls.rerolls}</b></div>
+<button class="btn" onclick="lockMutant()">Lock Mutant</button></main>`}
+function lockMutant(){
+ const p=state.rolls.primary,s=state.rolls.secondary,ab=state.rolls.ability,seed=`${p[0]}-${s[0]}-${ab.name}-${Date.now()}`;
+ let m=makeMutant(seed);m.primary=p[0];m.primaryIcon=p[1];m.secondary=s[0];m.secondaryIcon=s[1];m.ability={...ab};
+ let stats={hp:p[2].hp+s[2].hp,atk:p[2].atk+s[2].atk,def:p[2].def+s[2].def,spd:p[2].spd+s[2].spd};
+ if(ab.mods)for(const k in ab.mods)stats[k]=Math.round(stats[k]*ab.mods[k]);m.stats=stats;
+ m.name=(p[0].slice(0,Math.ceil(p[0].length/2))+s[0].slice(Math.floor(s[0].length/2))).replace(/\s/g,'');
+ state.run={tier:0,winsInTier:0,totalWins:0,roster:[m],active:[m.id],currentEnemy:null,log:[],captured:null};
+ state.screen='mutant';render()
+}
+function mutantDetails(m){return `<div class="card mutant-card"><div class="portrait">${portrait(m)}</div><div><div class="mutant-name">${m.name}</div><div class="mutant-code">${m.primary.toUpperCase()} × ${m.secondary.toUpperCase()}</div>
+<div class="stats"><div class="stat">HP<b>${m.stats.hp}</b></div><div class="stat">ATK<b>${m.stats.atk}</b></div><div class="stat">DEF<b>${m.stats.def}</b></div><div class="stat">SPD<b>${m.stats.spd}</b></div></div></div></div>
+<div class="ability"><b>${m.ability.icon} ${m.ability.name}</b><div class="muted">${m.ability.desc}</div></div>
+<div class="attacks">${m.attacks.map(a=>`<div class="attack"><span><b>${a.icon} ${a.name}</b><small class="muted">Power ${a.power}</small></span><span>Recovery ${a.recovery}</span></div>`).join('')}</div>`}
+function mutantScreen(){const m=state.run.roster[0];return `<main><div class="screen-head"><button class="back" onclick="go('wheels')">‹</button><div class="section-title">Your Mutant</div><span></span></div>${mutantDetails(m)}
+<button class="btn" style="margin-top:14px" onclick="enterTier()">Enter Qualifier</button></main>`}
+function enterTier(){
+ const t=TIERS[state.run.tier];state.run.winsInTier=0;state.run.currentEnemy=makeEnemyTeam(t.team,t.mult);state.screen='bracket';render()
+}
+function makeEnemyTeam(n,mult){return Array.from({length:n},(_,i)=>{const x=makeMutant(`enemy-${state.run?.tier}-${state.run?.totalWins}-${i}-${Math.random()}`);for(const k of ['hp','atk','def','spd'])x.stats[k]=Math.round(x.stats[k]*mult);return x})}
+function activeTeam(){const t=TIERS[state.run.tier];let team=state.run.roster.filter(m=>state.run.active.includes(m.id));if(team.length<t.team){for(const m of state.run.roster)if(!team.includes(m)&&team.length<t.team)team.push(m)}return team.slice(0,t.team)}
+function bracketScreen(){const t=TIERS[state.run.tier];let rows='';for(let i=0;i<t.wins;i++)rows+=`<div class="match ${i===state.run.winsInTier?'current':''}"><b>Round ${i+1}</b><span>${i<state.run.winsInTier?'WIN':i===state.run.winsInTier?'NEXT':'LOCKED'}</span></div>`;
+ return `<main><div class="screen-head"><button class="back" onclick="go('home')">‹</button><div class="section-title">${t.name}</div><span>${t.size} MUTANTS</span></div>
+<div class="card"><div style="display:flex;justify-content:space-between"><b>Bracket progress</b><span>${state.run.winsInTier}/${t.wins}</span></div>
+<div class="progress" style="margin-top:8px"><i style="width:${state.run.winsInTier/t.wins*100}%"></i></div></div>
+<div class="bracket" style="margin-top:12px">${rows}</div>
+<div class="card" style="margin-top:12px"><b>Next opponent</b><div class="team-row" style="margin-top:10px">${state.run.currentEnemy.map(m=>`<div class="mini">${portrait(m,true)}</div>`).join('')}</div></div>
+<button class="btn" style="margin-top:14px" onclick="beginBattle()">Fight</button></main>`}
+function beginBattle(){
+ const p=activeTeam().map(m=>combatant(m,'player')),e=state.run.currentEnemy.map(m=>combatant(m,'enemy'));
+ state.battle={p,e,gauge:{},turn:null,log:['The gate locks. The fight begins.'],ended:false};
+ [...p,...e].forEach(c=>state.battle.gauge[c.uid]=Math.random()*40);state.screen='battle';advanceTurn()
+}
+function combatant(m,side){return {...JSON.parse(JSON.stringify(m)),side,uid:m.id+'-'+side,hp:m.stats.hp,maxHp:m.stats.hp,status:{poison:0,burn:0},alive:true,revived:false,guardUsed:false,momentumStacks:0}}
+function speed(c){let v=c.stats.spd*(1+c.momentumStacks*.06);if(c.ability.lowHpSpeed&&c.hp/c.maxHp<.4)v*=c.ability.lowHpSpeed;return v}
+function advanceTurn(){
+ const b=state.battle;if(b.ended)return;
+ const all=[...b.p,...b.e].filter(x=>x.alive);if(!b.p.some(x=>x.alive)||!b.e.some(x=>x.alive))return finishBattle();
+ let acting=null;while(!acting){for(const c of all)b.gauge[c.uid]+=speed(c)/18;acting=all.find(c=>b.gauge[c.uid]>=100)}
+ b.gauge[acting.uid]-=100;b.turn=acting;
+ tickStatus(acting);if(!acting.alive)return setTimeout(advanceTurn,250);
+ if(acting.side==='enemy')setTimeout(enemyAct,550);render()
+}
+function tickStatus(c){
+ const b=state.battle;
+ if(c.status.poison>0){const d=Math.max(3,Math.round(c.maxHp*.045));dealRaw(c,d);c.status.poison--;b.log.push(`${c.name} takes ${d} poison damage.`)}
+ if(c.status.burn>0){const d=Math.max(3,Math.round(c.maxHp*.04));dealRaw(c,d);c.status.burn--;b.log.push(`${c.name} takes ${d} burn damage.`)}
+}
+function dealRaw(c,d){c.hp=Math.max(0,c.hp-d);if(c.hp<=0)down(c)}
+function down(c){
+ if(c.ability.revive&&!c.revived){c.revived=true;c.hp=Math.round(c.maxHp*.25);state.battle.log.push(`${c.name}'s Second Heart revives it!`);return}
+ c.alive=false;c.hp=0;state.battle.log.push(`${c.name} is knocked out!`);save.totalKOs++
+}
+function chooseTarget(side){const arr=side==='player'?state.battle.e:state.battle.p;return arr.filter(x=>x.alive).sort((a,b)=>a.hp-b.hp)[0]}
+function attack(attacker,target,atk){
+ if(target.ability.evade&&Math.random()<target.ability.evade){state.battle.log.push(`${target.name} evades ${atk.name}.`);return}
+ let dmg=atk.power*(attacker.stats.atk/100)*(100/(100+target.stats.def));
+ if(attacker.ability.berserk)dmg*=1+(1-attacker.hp/attacker.maxHp)*.55;
+ if(attacker.ability.execute&&target.hp/target.maxHp<.5)dmg*=attacker.ability.execute;
+ if(attacker.ability.pack)dmg*=1+.1*((attacker.side==='player'?state.battle.p:state.battle.e).filter(x=>x.alive).length-1);
+ if(attacker.ability.unstable)dmg*=1.18;
+ let crit=attacker.ability.crit&&Math.random()<attacker.ability.crit;if(crit)dmg*=1.75;
+ if(target.ability.firstGuard&&!target.guardUsed){target.guardUsed=true;dmg*=.45}
+ dmg=Math.max(1,Math.round(dmg*(.9+Math.random()*.2)));target.hp=Math.max(0,target.hp-dmg);
+ state.battle.log.push(`${attacker.name} uses ${atk.name} for ${dmg}${crit?' critical':''} damage.`);
+ if(attacker.side==='player')save.totalDamage+=dmg;else save.totalTaken+=dmg;
+ if(attacker.ability.onAttack==='poison'&&Math.random()<.25){target.status.poison=3;state.battle.log.push(`${target.name} is poisoned.`)}
+ if(target.ability.onHitTaken==='burn'){attacker.status.burn=2}
+ if(target.ability.onHitTaken==='poison'&&Math.random()<.3){attacker.status.poison=2}
+ if(target.ability.reflect){const r=Math.round(dmg*target.ability.reflect);dealRaw(attacker,r);state.battle.log.push(`${attacker.name} takes ${r} reflected damage.`)}
+ if(attacker.ability.lifesteal){const h=Math.round(dmg*attacker.ability.lifesteal);attacker.hp=Math.min(attacker.maxHp,attacker.hp+h)}
+ if(target.hp<=0)down(target);
+ if(attacker.ability.regen)attacker.hp=Math.min(attacker.maxHp,attacker.hp+Math.round(attacker.maxHp*attacker.ability.regen));
+ if(attacker.ability.unstable)dealRaw(attacker,Math.round(attacker.maxHp*.03));
+ if(attacker.ability.momentum)attacker.momentumStacks=Math.min(5,attacker.momentumStacks+1);
+}
+function playerAct(i){
+ const b=state.battle;if(!b.turn||b.turn.side!=='player'||b.ended)return;const a=b.turn,t=chooseTarget('player');attack(a,t,a.attacks[i]);b.gauge[a.uid]-=a.attacks[i].recovery/2;b.turn=null;persist();render();setTimeout(advanceTurn,350)
+}
+function enemyAct(){const b=state.battle;if(!b.turn||b.turn.side!=='enemy'||b.ended)return;const a=b.turn,t=chooseTarget('enemy'),atk=pick(a.attacks);attack(a,t,atk);b.gauge[a.uid]-=atk.recovery/2;b.turn=null;persist();render();setTimeout(advanceTurn,350)}
+function fighterHtml(c){return `<div class="fighter ${!c.alive?'dead':''}"><div class="hpbar"><i style="width:${c.hp/c.maxHp*100}%"></i></div><div class="portrait">${portrait(c,true)}</div><div class="fname">${c.name}</div></div>`}
+function battleScreen(){const b=state.battle,turn=b.turn;return `<main><div class="screen-head"><button class="back" onclick="forfeit()">×</button><div class="section-title">Battle</div><span>${TIERS[state.run.tier].name}</span></div>
+<div class="battle-stage"><div class="side left">${b.p.map(fighterHtml).join('')}</div><div class="side right">${b.e.map(fighterHtml).join('')}</div></div>
+<div class="turnstrip">${[...b.p,...b.e].filter(x=>x.alive).sort((a,c)=>(100-b.gauge[a.uid])/speed(a)-(100-b.gauge[c.uid])/speed(c)).slice(0,7).map(x=>`<div class="turntoken">${portrait(x,true)}</div>`).join('')}</div>
+<div class="actionlog">${b.log.slice(-8).join('<br>')}</div>
+${turn&&turn.side==='player'?`<div class="action-grid">${turn.attacks.map((a,i)=>`<button class="action" onclick="playerAct(${i})"><b>${a.icon} ${a.name}</b><small>Power ${a.power} · Recovery ${a.recovery}</small></button>`).join('')}</div>`:`<div class="card" style="text-align:center;margin-top:10px"><b>${turn?'Enemy is choosing an action…':'Resolving turn…'}</b></div>`}</main>`}
+function finishBattle(){
+ const won=state.battle.p.some(x=>x.alive);state.battle.ended=true;
+ if(won){save.totalWins++;save.currentStreak++;save.longestStreak=Math.max(save.longestStreak,save.currentStreak);state.run.totalWins++;state.run.winsInTier++;
+ const reward=20+state.run.tier*10;save.credits+=reward;state.run.captured=state.run.currentEnemy;state.screen='reward'}
+ else{save.totalLosses++;save.currentStreak=0;endRun(false)}persist();render()
+}
+function rewardScreen(){const t=TIERS[state.run.tier],done=state.run.winsInTier>=t.wins;return `<main><div class="section-title" style="text-align:center;font-size:32px">Victory</div>
+<div class="card" style="text-align:center;margin-bottom:12px"><b>Round won</b><div class="muted">Credits earned: ◆ ${20+state.run.tier*10}</div></div>
+<div class="section-title">Recruit one defeated mutant</div>
+${state.run.captured.map((m,i)=>`<button class="choice" onclick="recruit(${i})"><div class="portrait">${portrait(m,true)}</div><div style="text-align:left"><b>${m.name}</b><div class="muted">${m.primary} × ${m.secondary}</div><div style="color:var(--gold);margin-top:4px">${m.ability.icon} ${m.ability.name}</div></div></button>`).join('')}
+<button class="btn secondary" onclick="skipRecruit()">${done?'Continue without recruiting':'Skip recruitment'}</button></main>`}
+function recruit(i){const m=state.run.captured[i];if(state.run.roster.length>=5){state.run.roster.shift()}state.run.roster.push(m);save.recruited++;state.run.active=state.run.roster.slice(-TIERS[state.run.tier].team).map(x=>x.id);persist();afterReward()}
+function skipRecruit(){afterReward()}
+function afterReward(){
+ const t=TIERS[state.run.tier];
+ if(state.run.winsInTier>=t.wins){if(state.run.tier===TIERS.length-1){save.championships++;endRun(true);return}
+ state.run.tier++;save.bestTier=Math.max(save.bestTier,state.run.tier);state.run.currentEnemy=makeEnemyTeam(TIERS[state.run.tier].team,TIERS[state.run.tier].mult);state.screen='roster'}
+ else{state.run.currentEnemy=makeEnemyTeam(t.team,t.mult);state.screen='bracket'}persist();render()
+}
+function rosterScreen(){
+ const inRun=!!state.run; const roster=inRun?state.run.roster:[];
+ return `<main><div class="screen-head"><button class="back" onclick="go('${inRun?'bracket':'home'}')">‹</button><div class="section-title">${inRun?'Select Team':'Mutants'}</div><span>${roster.length}/5</span></div>
+ ${roster.length?roster.map((m,i)=>`<div class="card mutant-card" style="margin-bottom:10px"><div class="portrait">${portrait(m,true)}</div><div><b style="font-size:20px">${m.name}</b><div class="muted">${m.primary} × ${m.secondary}</div><div style="color:var(--gold)">${m.ability.icon} ${m.ability.name}</div>
+ ${inRun?`<button class="smallbtn" style="margin-top:8px" onclick="toggleActive('${m.id}')">${state.run.active.includes(m.id)?'ACTIVE':'SELECT'}</button>`:''}</div></div>`).join(''):`<div class="card"><b>No permanent mutant storage</b><p class="muted">Mutants belong to the current run. Career stats persist between runs.</p></div>`}
+ ${inRun?`<button class="btn" onclick="continueAfterRoster()">Continue to ${TIERS[state.run.tier].name}</button>`:''}</main>`}
+function toggleActive(id){const max=TIERS[state.run.tier].team;const a=state.run.active;if(a.includes(id))state.run.active=a.filter(x=>x!==id);else if(a.length<max)a.push(id);else{a.shift();a.push(id)}render()}
+function continueAfterRoster(){if(activeTeam().length<TIERS[state.run.tier].team)return toast('Select a full team');state.screen='bracket';render()}
+function statsScreen(){const wr=save.totalWins+save.totalLosses?Math.round(save.totalWins/(save.totalWins+save.totalLosses)*100):0;return `<main><div class="screen-head"><button class="back" onclick="go('home')">‹</button><div class="section-title">Career Stats</div><span></span></div>
+<div class="stats-grid">
+<div class="bigstat">Total runs<b>${save.totalRuns}</b></div><div class="bigstat">Match wins<b>${save.totalWins}</b></div>
+<div class="bigstat">Win rate<b>${wr}%</b></div><div class="bigstat">Championships<b>${save.championships}</b></div>
+<div class="bigstat">Total KOs<b>${save.totalKOs}</b></div><div class="bigstat">Mutants recruited<b>${save.recruited}</b></div>
+<div class="bigstat">Longest streak<b>${save.longestStreak}</b></div><div class="bigstat">Best bracket<b>${TIERS[save.bestTier].size}</b></div>
+<div class="bigstat">Damage dealt<b>${save.totalDamage.toLocaleString()}</b></div><div class="bigstat">Damage taken<b>${save.totalTaken.toLocaleString()}</b></div>
+</div><button class="btn secondary" style="margin-top:12px" onclick="go('leaderboard')">View Leaderboards</button></main>`}
+function leaderboardScreen(){
+ const generated=[['MutantMaster',23,256],['LabRat',18,256],['UndergroundKing',14,128],['BoneSaw',11,128],['CageGhost',9,64]];
+ const you=['YOU',save.championships,TIERS[save.bestTier].size];const rows=[...generated,you].sort((a,b)=>b[1]-a[1]||b[2]-a[2]);
+ return `<main><div class="screen-head"><button class="back" onclick="go('home')">‹</button><div class="section-title">Leaderboards</div><span>LOCAL</span></div>
+<div class="card"><div class="muted" style="font-size:12px">Firebase-ready leaderboard UI. This build uses local storage until your Firebase config is added.</div>
+${rows.map((r,i)=>`<div class="leader-row"><b>#${i+1}</b><div><b>${r[0]}</b><div class="muted">Best bracket ${r[2]}</div></div><b>${r[1]} 🏆</b></div>`).join('')}</div></main>`}
+function forfeit(){if(confirm('Forfeit this run?'))endRun(false)}
+function endRun(champion){save.history.unshift({date:new Date().toISOString(),wins:state.run?.totalWins||0,tier:state.run?.tier||0,champion});save.history=save.history.slice(0,20);state.run=null;state.screen='home';persist();render();toast(champion?'UMFL CHAMPION!':'Run ended')}
+function go(s){state.screen=s;render()}
+render();
+</script>
+</body>
+</html>
