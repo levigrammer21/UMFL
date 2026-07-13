@@ -1,6 +1,7 @@
 
 import {VERSION,PRIMARY,SECONDARY,ABILITIES,MOVE_LIBRARY,TIERS,REROLL_COSTS,MAX_REROLLS,MAX_ROSTER} from "./data.js";
 import {watchAuth,googleLogin,emailLogin,emailRegister,logout,loadUserSave,saveUser,publishLeaderboard,fetchLeaderboard} from "./firebase.js";
+import {sfx,startFightMusic,stopFightMusic} from "./sound.js";
 
 const app=document.querySelector("#app");
 const modalRoot=document.querySelector("#modal-root");
@@ -146,16 +147,21 @@ function renderHome(){
 }
 function startRun(){
   save.totalRuns++;
-  state.rolls={primary:choose(PRIMARY),secondary:choose(SECONDARY),ability:choose(ABILITIES),rerolls:MAX_REROLLS,spinning:null};
+  state.rolls={primary:null,secondary:null,ability:null,spun:{primary:false,secondary:false,ability:false},rerolls:MAX_REROLLS,spinning:null};
   state.run=null;state.screen="wheels";persist();render();
 }
 function wheelBlock(kind,label,item){
   const pool=kind==="primary"?PRIMARY:kind==="secondary"?SECONDARY:ABILITIES;
-  const idx=pool.indexOf(item),prev=pool[(idx-1+pool.length)%pool.length],next=pool[(idx+1)%pool.length];
-  const icon=x=>x.icon,desc=kind==="primary"?`${item.archetype} · 75% stat foundation`:kind==="secondary"?`${item.trait} · secondary move: ${item.move}`:`${item.rarity} · ${item.desc}`;
-  return `<section class="card wheel-card"><div class="wheel-head"><b>${label}</b><button class="small-btn" data-reroll="${kind}" ${state.rolls.rerolls<=0||state.busy?"disabled":""}>REROLL ◆${REROLL_COSTS[kind]}</button></div>
-  <div class="wheel ${state.rolls.spinning===kind?"spinning":""}"><div class="wheel-item">${icon(prev)}</div><div class="wheel-item active">${icon(item)}</div><div class="wheel-item">${icon(next)}</div></div>
-  <div class="wheel-result">${esc(item.name)}</div><div class="wheel-desc">${esc(desc)}</div></section>`;
+  const unknown={name:"Unknown",icon:"?",archetype:"Spin to reveal",trait:"Spin to reveal",desc:"Spin to reveal this mutation."};
+  const shown=item||unknown;
+  const idx=item?pool.indexOf(item):0,prev=item?pool[(idx-1+pool.length)%pool.length]:unknown,next=item?pool[(idx+1)%pool.length]:unknown;
+  const desc=!item?"Tap SPIN to generate this part of your mutant.":kind==="primary"?`${item.archetype} · 75% stat foundation`:kind==="secondary"?`${item.trait} · secondary move: ${item.move}`:`${item.rarity} · ${item.desc}`;
+  const hasSpun=state.rolls.spun[kind];
+  const cost=REROLL_COSTS[kind];
+  return `<section class="card wheel-card"><div class="wheel-head"><b>${label}</b>
+  <button class="small-btn" data-spin="${kind}" ${state.busy?"disabled":""}>${hasSpun?`REROLL ◆${cost}`:"SPIN"}</button></div>
+  <div class="wheel ${state.rolls.spinning===kind?"spinning":""}"><div class="wheel-item">${prev.icon}</div><div class="wheel-item active">${shown.icon}</div><div class="wheel-item">${next.icon}</div></div>
+  <div class="wheel-result">${esc(shown.name)}</div><div class="wheel-desc">${esc(desc)}</div></section>`;
 }
 function renderWheels(){
   shell(`<main><div class="screen-title"><button class="icon-btn" data-go="home">‹</button><h2>Generation Lab</h2><span></span></div>
@@ -163,17 +169,30 @@ function renderWheels(){
   ${wheelBlock("secondary","WHEEL 2 · SECONDARY",state.rolls.secondary)}
   ${wheelBlock("ability","WHEEL 3 · MUTATION",state.rolls.ability)}
   <div class="card reroll-bank"><span>Rerolls remaining</span><b>${state.rolls.rerolls}</b></div>
-  <button class="btn" data-action="lock-mutant">Lock Mutant</button></main>`);
+  <div class="grid2"><button class="btn secondary" data-action="tutorial">How to Play</button>
+  <button class="btn" data-action="lock-mutant" ${Object.values(state.rolls.spun).every(Boolean)?"":"disabled"}>Lock Mutant</button></div></main>`);
 }
-async function reroll(kind){
-  if(state.busy||state.rolls.rerolls<=0)return;
-  const cost=REROLL_COSTS[kind];if(save.credits<cost)return toast("Not enough credits");
-  state.busy=true;state.rolls.spinning=kind;save.credits-=cost;state.rolls.rerolls--;persist();render();
+async function spinWheel(kind){
+  if(state.busy)return;
+  const first=!state.rolls.spun[kind],cost=REROLL_COSTS[kind];
+  if(!first){
+    if(state.rolls.rerolls<=0)return toast("No rerolls remaining");
+    if(save.credits<cost)return toast("Not enough credits");
+    save.credits-=cost;state.rolls.rerolls--;
+  }
+  state.busy=true;state.rolls.spinning=kind;sfx("spin");persist();render();
   const pool=kind==="primary"?PRIMARY:kind==="secondary"?SECONDARY:ABILITIES;
-  for(let i=0;i<8;i++){await new Promise(r=>setTimeout(r,70));state.rolls[kind]=choose(pool);render()}
-  state.rolls.spinning=null;state.busy=false;render();
+  const steps=first?18:24;
+  for(let i=0;i<steps;i++){
+    await new Promise(r=>setTimeout(r,55+i*5));
+    state.rolls[kind]=choose(pool);render();
+    if(i%3===0)sfx("spin");
+  }
+  state.rolls.spun[kind]=true;state.rolls.spinning=null;state.busy=false;sfx("lock");persist();render();
 }
 function lockMutant(){
+  if(!Object.values(state.rolls.spun).every(Boolean))return toast("Spin all three wheels first");
+  sfx("lock");
   const starter=createStartingMutant();
   state.run={
     id:uid("run"),startedAt:Date.now(),tier:0,winsInTier:0,totalWins:0,totalKOs:0,
@@ -191,10 +210,46 @@ function mutantCard(m,full=true){
 }
 function renderMutant(){
   shell(`<main><div class="screen-title"><button class="icon-btn" data-go="wheels">‹</button><h2>Your Mutant</h2><span></span></div>
-  ${mutantCard(state.run.roster[0])}<button class="btn" style="margin-top:11px" data-action="enter-tier">Enter Qualifier</button></main>`);
+  ${mutantCard(state.run.roster[0])}<div class="grid2" style="margin-top:11px"><button class="btn secondary" data-action="tutorial">Battle Guide</button><button class="btn" data-action="enter-tier">Enter Qualifier</button></div></main>`);
+}
+
+const HANDLER_FIRST=["Mara","Vex","Rook","Nyx","Dante","Iris","Knox","Sable","Jett","Mako","Vale","Rhea","Crow","Axel","Zara","Bram"];
+const HANDLER_LAST=["Graves","Kane","Mercer","Black","Riot","Voss","Stone","Fang","Cross","Ward","Drake","Ash","Steel","Holt","Raze","Morrow"];
+function makeHandler(seed,teamSize,scale,tier,index){
+  const r=mulberry32(hash(seed));const name=`${choose(HANDLER_FIRST,r)} ${choose(HANDLER_LAST,r)}`;
+  return {id:`handler-${tier}-${index}-${seed}`,name,team:generateEnemyTeam(teamSize,scale,tier,index%TIERS[tier].wins)};
+}
+function buildBracket(tierIndex){
+  const t=TIERS[tierIndex],handlers=[];
+  handlers.push({id:"you",name:user?.displayName||"YOU",team:activeTeam(),isPlayer:true});
+  for(let i=1;i<t.size;i++)handlers.push(makeHandler(`${state.run.bracketSeed}-${tierIndex}-${i}`,t.teamSize,t.scale,tierIndex,i));
+  for(let i=handlers.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[handlers[i],handlers[j]]=[handlers[j],handlers[i]]}
+  return {handlers,rounds:Array.from({length:Math.log2(t.size)},(_,i)=>({name:i===Math.log2(t.size)-1?"Final":`Round ${i+1}`}))};
+}
+function bracketBoard(){
+  const b=state.run.fullBracket,t=TIERS[state.run.tier];
+  if(!b)return "";
+  const columns=b.rounds.map((round,ri)=>{
+    const count=t.size/(2**ri),items=[];
+    for(let i=0;i<count;i++){
+      if(ri===0){
+        const h=b.handlers[i];items.push(`<button class="bracket-entry ${h.isPlayer?"you":""}" data-handler="${h.id}"><span>${h.isPlayer?"★":"♟"}</span><b>${esc(h.name)}</b><small>${h.team.length} mutants</small></button>`);
+      }else{
+        const isPath=i===0;items.push(`<div class="bracket-entry ${isPath?"path":""}"><span>${isPath?"★":"?"}</span><b>${isPath?(user?.displayName||"YOU"):"TBD"}</b><small>${round.name}</small></div>`);
+      }
+    }
+    return `<div class="bracket-column"><h4>${round.name}</h4>${items.join("")}</div>`;
+  }).join("");
+  return `<div class="full-bracket">${columns}</div>`;
+}
+function showHandler(id){
+  const h=state.run.fullBracket?.handlers.find(x=>x.id===id);if(!h)return;
+  modalRoot.innerHTML=`<div class="modal-wrap"><div class="modal"><div class="screen-title"><h2>${esc(h.name)}</h2><button class="icon-btn" data-modal-close>×</button></div>
+  <div class="roster-list">${h.team.map(m=>`<div class="card">${mutantCard(m,false)}</div>`).join("")}</div></div></div>`;
 }
 function enterTier(){
   const tier=TIERS[state.run.tier];
+  if(!state.run.fullBracket)state.run.fullBracket=buildBracket(state.run.tier);
   state.run.enemyTeam=generateEnemyTeam(tier.teamSize,tier.scale,state.run.tier,state.run.winsInTier);
   persist();state.screen="bracket";render();
 }
@@ -204,13 +259,19 @@ function activeTeam(){
 }
 function renderBracket(){
   const t=TIERS[state.run.tier];
-  const roundRows=Array.from({length:t.wins},(_,i)=>`<div class="round ${i<state.run.winsInTier?"done":i===state.run.winsInTier?"current":""}"><b>Round ${i+1}</b><span>${i<state.run.winsInTier?"WON":i===state.run.winsInTier?"NEXT":"LOCKED"}</span></div>`).join("");
-  shell(`<main><div class="screen-title"><button class="icon-btn" data-go="home">‹</button><h2>${t.name}</h2><span class="eyebrow">Tier ${state.run.tier+1}/7</span></div>
-  <div class="card"><div class="bracket-header"><div><div class="eyebrow">Single elimination</div><b>${t.wins} fights to promotion</b></div><div class="bracket-size">${t.size}</div></div>
+  const roundRows=Array.from({length:t.wins},(_,i)=>`<div class="round ${i<state.run.winsInTier?"done":i===state.run.winsInTier?"current":""}"><b>${i===t.wins-1?"Final":`Round ${i+1}`}</b><span>${i<state.run.winsInTier?"WON":i===state.run.winsInTier?"NEXT":"LOCKED"}</span></div>`).join("");
+  shell(`<main><div class="screen-title"><button class="icon-btn" data-go="home">‹</button><h2>${t.name}</h2><button class="small-btn" data-action="tutorial">?</button></div>
+  <div class="card colorful"><div class="bracket-header"><div><div class="eyebrow">Single elimination</div><b>${t.wins} wins to promotion</b></div><div class="bracket-size">${t.size}</div></div>
   <div class="progress" style="margin-top:11px"><i style="width:${state.run.winsInTier/t.wins*100}%"></i></div></div>
   <div class="round-list">${roundRows}</div>
-  <div class="card" style="margin-top:10px"><div class="eyebrow">Scouting report</div><div class="scout-grid">${state.run.enemyTeam.map(m=>`<div class="scout"><div class="portrait">${portrait(m,true)}</div><div class="scout-name">${esc(m.name)}</div></div>`).join("")}</div></div>
-  <div class="grid2" style="margin-top:10px"><button class="btn secondary" data-go="roster">Select Team</button><button class="btn" data-action="start-battle">Fight</button></div></main>`);
+  <div class="card" style="margin-top:10px"><div class="screen-title"><div><div class="eyebrow">Scouting report</div><b>Tap a mutant for full details</b></div></div>
+  <div class="scout-grid">${state.run.enemyTeam.map(m=>`<button class="scout scout-button" data-scout="${m.id}"><div class="portrait">${portrait(m,true)}</div><div class="scout-name">${esc(m.name)}</div><div class="scout-mini">HP ${m.stats.hp} · ATK ${m.stats.atk}<br>DEF ${m.stats.def} · SPD ${m.stats.spd}</div></button>`).join("")}</div></div>
+  <div class="card" style="margin-top:10px"><div class="screen-title"><div><div class="eyebrow">Full ${t.size}-fighter bracket</div><b>Tap handlers to inspect rosters</b></div></div>${bracketBoard()}</div>
+  <div class="grid2" style="margin-top:10px"><button class="btn secondary" data-go="roster">Your Team</button><button class="btn" data-action="start-battle">Fight</button></div></main>`);
+}
+function showScout(id){
+  const m=state.run.enemyTeam.find(x=>x.id===id);if(!m)return;
+  modalRoot.innerHTML=`<div class="modal-wrap"><div class="modal"><div class="screen-title"><h2>Scouting File</h2><button class="icon-btn" data-modal-close>×</button></div>${mutantCard(m,true)}</div></div>`;
 }
 function renderRoster(){
   if(!state.run){
@@ -238,7 +299,7 @@ function makeCombatant(m,side,index){
     ...clone(m),uid:`${m.id}-${side}-${index}`,side,index,hp:m.stats.hp,maxHp:m.stats.hp,gauge:Math.random()*32,
     alive:true,status:{poison:0,burn:0,bleed:0,slow:0,weaken:0},buff:{atk:0,def:0,crit:0,evasion:0,guard:0},
     flags:{revived:false,lastStand:false,firstGuard:false,phaseHits:0,coldStarted:true},
-    actionCount:0,momentum:0,reactiveDef:0,stolenSpeed:0
+    actionCount:0,momentum:0,reactiveDef:0,stolenSpeed:0,cooldowns:{}
   };
 }
 function startBattle(){
@@ -248,7 +309,7 @@ function startBattle(){
   const enemies=state.run.enemyTeam.map((m,i)=>makeCombatant(m,"enemy",i));
   state.battle={players,enemies,turn:null,selectedTarget:null,log:["The cage locks. Fight!"],ended:false,processing:false};
   applyOpeningEffects();
-  state.screen="battle";render();setTimeout(advanceTimeline,350);
+  state.screen="battle";startFightMusic(save.settings.sound);render();setTimeout(advanceTimeline,350);
 }
 function allCombatants(){return [...state.battle.players,...state.battle.enemies]}
 function alliesOf(c){return c.side==="player"?state.battle.players:state.battle.enemies}
@@ -297,6 +358,7 @@ function advanceTimeline(){
   else{b.processing=false;state.battle.selectedTarget=living(b.enemies)[0]?.uid||null;render()}
 }
 function processStartTurn(c){
+  for(const k of Object.keys(c.cooldowns||{}))c.cooldowns[k]=Math.max(0,c.cooldowns[k]-1);
   const entries=[["poison",.045,"poison"],["burn",.04,"burn"],["bleed",.035,"bleed"]];
   for(const [key,pct,label] of entries){
     if(c.status[key]>0&&c.alive){
@@ -319,7 +381,7 @@ function knockout(target,killer){
   if(target.ability.effect==="lastStand"&&!target.flags.lastStand){
     target.flags.lastStand=true;target.hp=1;state.battle.log.push(`${target.name} refuses the knockout.`);return;
   }
-  target.alive=false;target.hp=0;save.totalKOs++;
+  target.alive=false;target.hp=0;save.totalKOs++;sfx("ko");
   if(killer){
     killer.record.kos=(killer.record.kos||0)+1;state.run.totalKOs++;
     if(killer.ability.effect==="frenzy")killer.gauge+=50;
@@ -353,17 +415,36 @@ function calculateDamage(actor,target,move){
   const crit=Math.random()<critChance;if(crit)base*=1.75;
   return {amount:Math.max(1,Math.round(base*(.92+Math.random()*.16))),crit};
 }
-function attemptHit(actor,target){
-  let evade=target.buff.evasion+(target.ability.effect==="evade"?.19:0);
+function moveAccuracy(move){
+  if(move.accuracy)return move.accuracy;
+  if(move.tags.includes("utility")||move.tags.includes("guard"))return 1;
+  if(move.tags.includes("quick"))return .95;
+  if(move.power>=48)return .80;
+  if(move.power>=42)return .86;
+  return .91;
+}
+function moveCooldown(move){
+  if(move.tags.includes("utility")||move.tags.includes("guard"))return move.recovery>=80?2:1;
+  if(move.power>=48||move.recovery>=110)return 3;
+  if(move.power>=40||move.recovery>=90)return 2;
+  return 1;
+}
+function hitResult(actor,target,move){
+  let accuracy=moveAccuracy(move),evade=target.buff.evasion+(target.ability.effect==="evade"?.19:0);
   if(target.ability.effect==="phase"&&target.flags.phaseHits<2){target.flags.phaseHits++;evade+=.45}
-  return Math.random()>=evade;
+  const roll=Math.random(),hitChance=clamp(accuracy-evade,.2,.99);
+  if(roll<=hitChance)return "hit";
+  if(roll<=hitChance+.10)return "glance";
+  return "miss";
 }
 function directHit(actor,target,move,mult=1){
   if(!target.alive)return 0;
-  if(!attemptHit(actor,target)){state.battle.log.push(`${target.name} evades ${move.name}.`);return 0}
-  const calc=calculateDamage(actor,target,move);let dmg=Math.round(calc.amount*mult);
+  const result=hitResult(actor,target,move);
+  if(result==="miss"){state.battle.log.push(`${actor.name}'s ${move.name} misses ${target.name}.`);sfx("miss");return 0}
+  const calc=calculateDamage(actor,target,move);let dmg=Math.round(calc.amount*mult*(result==="glance"?.38:1));
   target.hp=Math.max(0,target.hp-dmg);
-  state.battle.log.push(`${actor.name} uses ${move.name}: ${dmg}${calc.crit?" CRIT":""}.`);
+  state.battle.log.push(`${actor.name} uses ${move.name}: ${dmg}${result==="glance"?" GLANCING":calc.crit?" CRIT":""}.`);
+  sfx(result==="glance"?"glance":calc.crit?"crit":"hit");
   if(actor.side==="player"){save.damageDealt+=dmg;actor.record.damage=(actor.record.damage||0)+dmg}
   else save.damageTaken+=dmg;
   applyOnHit(actor,target,move,dmg);
@@ -419,6 +500,7 @@ function resolveMove(actor,target,move){
   if(actor.ability.effect==="unstable")rawDamage(actor,Math.round(actor.maxHp*.03),actor,"core backlash");
   if(actor.ability.effect==="bloodPrice")rawDamage(actor,Math.round(actor.maxHp*.06),actor,"blood price");
   if(actor.ability.effect==="momentum")actor.momentum=Math.min(5,actor.momentum+1);
+  actor.cooldowns[move.name]=moveCooldown(move);
   actor.gauge-=move.recovery*.42;
   if(actor.gauge<0)actor.gauge=0;
 }
@@ -447,6 +529,7 @@ function resolveUtility(actor,target,move){
 function choosePlayerMove(index){
   const b=state.battle,actor=b.turn;if(!actor||actor.side!=="player"||b.processing)return;
   const move=actor.moves[index],target=targetByUid(b.selectedTarget)||living(b.enemies)[0];
+  if((actor.cooldowns[move.name]||0)>0)return toast(`${move.name} is recovering`);
   if(!target&&!move.tags.includes("utility")&&!move.tags.includes("guard"))return;
   b.processing=true;resolveMove(actor,target,move);b.turn=null;render();
   setTimeout(()=>{b.processing=false;advanceTimeline()},360);
@@ -456,8 +539,8 @@ function enemyChoose(actor){
   if(!actor.alive){state.battle.processing=false;state.battle.turn=null;return advanceTimeline()}
   const foes=living(foesOf(actor));if(!foes.length)return finishBattle();
   let target=foes.sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
-  const usable=actor.moves;
-  let move=choose(usable);
+  const usable=actor.moves.filter(m=>(actor.cooldowns[m.name]||0)<=0);
+  let move=choose(usable.length?usable:actor.moves);
   if(actor.hp/actor.maxHp<.35){
     const defensive=usable.find(m=>m.tags.includes("guard")||["selfHeal","cleanseHeal","guardHeal"].includes(m.effect));
     if(defensive&&Math.random()<.6)move=defensive;
@@ -479,7 +562,8 @@ function renderBattle(){
   const b=state.battle,actor=b.turn;
   const targets=actor?.side==="player"?living(b.enemies):[];
   const controls=actor?.side==="player"?`<div class="target-strip">${targets.map(t=>`<button class="target-btn ${b.selectedTarget===t.uid?"selected":""}" data-target="${t.uid}">${esc(t.name)} · ${Math.ceil(t.hp/t.maxHp*100)}%</button>`).join("")}</div>
-  <div class="action-grid">${actor.moves.map((m,i)=>`<button class="action-btn" data-move="${i}"><b>${esc(m.name)}</b><small>${m.power?`Power ${m.power}`:"Utility"} · Recovery ${m.recovery}</small></button>`).join("")}</div>`
+  <div class="action-grid">${actor.moves.map((m,i)=>{const cd=actor.cooldowns[m.name]||0,acc=Math.round(moveAccuracy(m)*100),cool=moveCooldown(m);
+  return `<button class="action-btn ${cd?"cooling":""}" data-move="${i}" ${cd?"disabled":""}><b>${esc(m.name)}</b><small>${m.power?`Power ${m.power}`:"Utility"} · ${acc}% accuracy<br>Recovery ${m.recovery} · Cooldown ${cool}${cd?` · ${cd} turn${cd===1?"":"s"} left`:""}</small></button>`}).join("")}</div>`
   :`<div class="card" style="text-align:center"><b>${actor?"Enemy choosing…":"Timeline advancing…"}</b></div>`;
   shell(`<main><div class="battle-top"><button class="icon-btn" data-action="forfeit">×</button><div><div class="eyebrow">${TIERS[state.run.tier].name}</div><b>Round ${state.run.winsInTier+1}</b></div><span>${living(b.players).length}–${living(b.enemies).length}</span></div>
   <div class="battle-stage"><div class="battle-side left">${b.players.map(fighterHTML).join("")}</div><div class="battle-side right">${b.enemies.map(fighterHTML).join("")}</div></div>
@@ -487,8 +571,10 @@ function renderBattle(){
   <div class="combat-log">${b.log.slice(-12).join("<br>")}</div><div class="action-panel">${controls}</div></main>`);
 }
 function finishBattle(){
+  stopFightMusic();
   const won=living(state.battle.players).length>0;state.battle.ended=true;
   if(won){
+    sfx("win");
     save.matchWins++;save.currentStreak++;save.longestStreak=Math.max(save.longestStreak,save.currentStreak);
     state.run.totalWins++;state.run.winsInTier++;
     const reward=TIERS[state.run.tier].credit;save.credits+=reward;
@@ -498,6 +584,7 @@ function finishBattle(){
     }
     state.run.rewardTeam=state.run.enemyTeam;state.run.selectedRecruit=null;state.screen="reward";
   }else{
+    sfx("lose");
     save.matchLosses++;save.currentStreak=0;completeRun(false);
   }
   persist();render();
@@ -530,7 +617,7 @@ function afterRecruit(){
   const t=TIERS[state.run.tier];
   if(state.run.winsInTier>=t.wins){
     if(state.run.tier===TIERS.length-1){save.championships++;completeRun(true);return}
-    state.run.tier++;state.run.winsInTier=0;save.bestBracket=Math.max(save.bestBracket,TIERS[state.run.tier].size);
+    state.run.tier++;state.run.winsInTier=0;state.run.fullBracket=buildBracket(state.run.tier);save.bestBracket=Math.max(save.bestBracket,TIERS[state.run.tier].size);
     const needed=TIERS[state.run.tier].teamSize;
     state.run.activeIds=state.run.roster.slice(0,needed).map(m=>m.id);
     state.run.enemyTeam=generateEnemyTeam(needed,TIERS[state.run.tier].scale,state.run.tier,0);
@@ -587,6 +674,17 @@ async function renderLeaderboard(){
   }
 }
 function formatTime(sec){const m=Math.floor(sec/60),s=sec%60;return `${m}:${String(s).padStart(2,"0")}`}
+
+function openTutorial(){
+  modalRoot.innerHTML=`<div class="modal-wrap"><div class="modal tutorial"><div class="screen-title"><h2>UMFL Field Manual</h2><button class="icon-btn" data-modal-close>×</button></div>
+  <div class="guide-section"><h3>How a run works</h3><p>Spin Primary, Secondary, and Mutation. Your generated mutant is fixed for the run. Win brackets from Qualifier through the 256-fighter Championship. After every win, you may recruit one exact mutant you defeated.</p></div>
+  <div class="guide-section"><h3>Stats</h3><p><b>HP</b> is survivability. <b>ATK</b> increases direct damage. <b>DEF</b> reduces incoming direct damage. <b>SPD</b> fills the action gauge faster, so very fast mutants may act more often.</p></div>
+  <div class="guide-section"><h3>Recovery and cooldown</h3><p><b>Recovery</b> is the timeline cost after using a move. A high-recovery move pushes that mutant farther back before its next action. <b>Cooldown</b> prevents repeating the same powerful move every action. Cooldowns count down when that mutant receives a turn.</p></div>
+  <div class="guide-section"><h3>Accuracy, misses, glancing blows, and crits</h3><p>Every attack has an accuracy value. Fast attacks are usually accurate; huge attacks are less reliable. A near miss becomes a <b>glancing blow</b> for reduced damage. Critical hits usually deal 175% damage. Evasion lowers an attacker's final hit chance.</p></div>
+  <div class="guide-section"><h3>Status effects</h3><p>☠️ Poison, 🔥 Burn, and 🩸 Bleed deal damage at the start of turns. 🐌 Slow reduces action-gauge speed. ⬇️ Weaken reduces combat performance.</p></div>
+  <div class="guide-section"><h3>Mutations</h3><p>Tap any mutant in scouting or roster screens to inspect its fixed mutation and move details. Mutations include stat changes, counters, healing, status application, revival, speed effects, and risk/reward mechanics.</p></div>
+  <button class="btn" data-modal-close>Close Manual</button></div></div>`;
+}
 function openSettings(){
   modalRoot.innerHTML=`<div class="modal-wrap"><div class="modal"><div class="screen-title"><h2>Settings</h2><button class="icon-btn" data-modal-close>×</button></div>
   <div class="settings-row"><span>Sound effects</span><button class="toggle ${save.settings.sound?"on":""}" data-setting="sound"><i></i></button></div>
@@ -612,7 +710,7 @@ async function doAuth(type){
   }catch(e){toast(authMessage(e.code)||e.message)}
 }
 function authMessage(code){
-  const map={"auth/email-already-in-use":"That email already has an account.","auth/invalid-credential":"Email or password is incorrect.","auth/weak-password":"Use at least six characters.","auth/popup-blocked":"Popup blocked. Try again."};
+  const map={"auth/unauthorized-domain":"This GitHub Pages domain is not in Firebase Authentication → Settings → Authorized domains.","auth/operation-not-allowed":"Enable this sign-in provider in Firebase Authentication → Sign-in method.","auth/popup-closed-by-user":"The Google sign-in window was closed.","auth/email-already-in-use":"That email already has an account.","auth/invalid-credential":"Email or password is incorrect.","auth/weak-password":"Use at least six characters.","auth/popup-blocked":"Popup blocked. Try again."};
   return map[code];
 }
 function forfeit(){
@@ -627,10 +725,12 @@ function go(screen){
 
 app.addEventListener("click",async e=>{
   const goEl=e.target.closest("[data-go]");if(goEl)return go(goEl.dataset.go);
-  const rr=e.target.closest("[data-reroll]");if(rr)return reroll(rr.dataset.reroll);
+  const spin=e.target.closest("[data-spin]");if(spin)return spinWheel(spin.dataset.spin);
   const toggle=e.target.closest("[data-toggle-mutant]");if(toggle)return toggleMutant(toggle.dataset.toggleMutant);
   const target=e.target.closest("[data-target]");if(target)return selectTarget(target.dataset.target);
   const move=e.target.closest("[data-move]");if(move)return choosePlayerMove(Number(move.dataset.move));
+  const scout=e.target.closest("[data-scout]");if(scout)return showScout(scout.dataset.scout);
+  const handler=e.target.closest("[data-handler]");if(handler)return showHandler(handler.dataset.handler);
   const recruit=e.target.closest("[data-recruit-select]");if(recruit)return selectRecruit(recruit.dataset.recruitSelect);
   const replace=e.target.closest("[data-replace]");if(replace)return replaceMutant(replace.dataset.replace,replace.dataset.new);
   const leader=e.target.closest("[data-leader]");if(leader){state.leaderField=leader.dataset.leader;return renderLeaderboard()}
@@ -639,7 +739,7 @@ app.addEventListener("click",async e=>{
   const action=e.target.closest("[data-action]")?.dataset.action;
   if(!action)return;
   const actions={
-    "settings":openSettings,"start-run":startRun,"lock-mutant":lockMutant,"enter-tier":enterTier,
+    "settings":openSettings,"tutorial":openTutorial,"start-run":startRun,"lock-mutant":lockMutant,"enter-tier":enterTier,
     "start-battle":startBattle,"confirm-team":()=>go("bracket"),"confirm-recruit":confirmRecruit,
     "pass-recruit":passRecruit,"forfeit":forfeit,"continue-run":()=>go(state.run.enemyTeam.length?"bracket":"mutant"),
     "abandon-run":()=>{if(confirm("Abandon current run?")){state.run=null;persist();render()}},
@@ -650,9 +750,15 @@ app.addEventListener("click",async e=>{
   actions[action]?.();
 });
 modalRoot.addEventListener("click",e=>{
-  if(e.target.classList.contains("modal-wrap"))modalRoot.innerHTML="";
+  if(e.target.closest("[data-modal-close]")||e.target.classList.contains("modal-wrap"))modalRoot.innerHTML="";
+  const replace=e.target.closest("[data-replace]");if(replace)return replaceMutant(replace.dataset.replace,replace.dataset.new);
+  const setting=e.target.closest("[data-setting]");if(setting){const k=setting.dataset.setting;save.settings[k]=!save.settings[k];persist();return openSettings()}
+  const action=e.target.closest("[data-action]")?.dataset.action;
+  if(action==="logout")logout().then(()=>modalRoot.innerHTML="");
+  if(action==="reset-save"&&confirm("Reset all local UMFL career data?")){save=mergeSave({});localStorage.removeItem("umfl-save");state.run=null;modalRoot.innerHTML="";persist();render()}
 });
 
+document.addEventListener("pointerdown",e=>{if(save.settings.sound&&e.target.closest("button"))sfx("click")},{passive:true});
 watchAuth(async nextUser=>{
   user=nextUser;
   if(user){
@@ -671,3 +777,4 @@ watchAuth(async nextUser=>{
   render();
 });
 render();
+

@@ -1,24 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn(){ return request.auth != null; }
+    function signedIn() { return request.auth != null; }
+    function owns(uid) { return signedIn() && request.auth.uid == uid; }
 
     match /users/{uid} {
-      allow create, read, update, delete: if signedIn() && request.auth.uid == uid;
+      allow read, create, update, delete: if owns(uid);
     }
 
     match /leaderboards/{uid} {
       allow read: if true;
-      allow create, update: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.championships is int
-        && request.resource.data.matchWins is int
-        && request.resource.data.totalKOs is int
-        && request.resource.data.longestStreak is int
-        && request.resource.data.bestBracket is int
-        && request.resource.data.damageDealt is int;
-      allow delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if owns(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'uid','displayName','championships','matchWins','totalKOs',
+          'longestStreak','bestBracket','damageDealt','fastestChampionship','updatedAt'
+        ]);
+      allow delete: if owns(uid);
     }
   }
 }

@@ -28,8 +28,13 @@ export function watchAuth(callback){
   return onAuthStateChanged(auth,callback);
 }
 export async function googleLogin(){
-  if(matchMedia("(max-width:700px)").matches) return signInWithRedirect(auth,provider);
-  return signInWithPopup(auth,provider);
+  try{return await signInWithPopup(auth,provider)}
+  catch(error){
+    if(["auth/popup-blocked","auth/cancelled-popup-request"].includes(error.code)){
+      return signInWithRedirect(auth,provider);
+    }
+    throw error;
+  }
 }
 export async function emailLogin(email,password){return signInWithEmailAndPassword(auth,email,password)}
 export async function emailRegister(email,password){return createUserWithEmailAndPassword(auth,email,password)}

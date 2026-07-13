@@ -1,5 +1,5 @@
 
-export const VERSION="v1.0.0";
+export const VERSION="v1.1.0";
 
 export const PRIMARY=[
 {name:"Bear",icon:"🐻",archetype:"Juggernaut",stats:{hp:150,atk:116,def:119,spd:67},moves:["Maul","Crushing Swipe","Hibernating Guard","Roar"]},
