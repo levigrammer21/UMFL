@@ -1,17 +1,10 @@
-# UMFL v1.2.0
+# UMFL v1.2.1 hotfix
 
-Upload every file directly to the repository root.
+Upload every file directly to the repository root, replacing v1.2.0.
 
-Changes:
-- Much louder sound effects and fight music
-- Battles begin 2v2 and grow to 4v4
-- Primary and secondary inherited passives
-- Full character-creation preview with stats, moves, mutation, and passives
-- League-issued second starting mutant
-- Stronger utility and team-wide effects
-- More area attacks
-- Vertical team battle layout with active-fighter lighting
-- Combat log in the center with humorous commentary
-- Rebuilt bracket columns
-- Stronger prismatic color accents
-- Ready for a future root-level images folder
+Fixed:
+- Enter Qualifier button crash caused by the bracket builder calling a nonexistent `makeHandler()` function.
+- Bracket handler data is now generated with the existing enemy-generation system.
+- Existing v1.2.0 broken bracket data is automatically rebuilt.
+- League-issued partner is generated once when the run is created and remains the same for that run.
+- The Opening Team back button now returns Home instead of returning to the wheels and creating an accidental new run.

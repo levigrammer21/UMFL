@@ -208,12 +208,14 @@ function lockMutant(){
   if(!Object.values(state.rolls.spun).every(Boolean))return toast("Spin all three wheels first");
   sfx("lock");
   const starter=createStartingMutant();
-  const support=generateMutant(`support-${Date.now()}-${Math.random()}`,.96);
+  const runId=uid("run");
+  const bracketSeed=Math.random().toString(36).slice(2);
+  const support=generateMutant(`league-partner-${runId}-${bracketSeed}`,.96);
   support.record.recruitedAt={tier:-1,round:0};
   state.run={
-    id:uid("run"),startedAt:Date.now(),tier:0,winsInTier:0,totalWins:0,totalKOs:0,
+    id:runId,startedAt:Date.now(),tier:0,winsInTier:0,totalWins:0,totalKOs:0,
     roster:[starter,support],activeIds:[starter.id,support.id],enemyTeam:[],rewardTeam:[],selectedRecruit:null,
-    bracketSeed:Math.random().toString(36).slice(2),completed:false
+    bracketSeed,completed:false
   };
   persist();state.screen="mutant";render();
 }
@@ -240,27 +242,34 @@ function mutantCard(m,full=true){
 }
 function renderMutant(){
   const starter=state.run.roster[0],support=state.run.roster[1];
-  shell(`<main><div class="screen-title"><button class="icon-btn" data-go="wheels">‹</button><h2>Opening Team</h2><span></span></div>
+  shell(`<main><div class="screen-title"><button class="icon-btn" data-go="home">‹</button><h2>Opening Team</h2><span></span></div>
   <div class="eyebrow" style="margin-bottom:7px">Your wheel-generated captain</div>${mutantCard(starter)}
   <div class="eyebrow" style="margin:14px 0 7px">League-issued partner</div>${mutantCard(support)}
   <div class="grid2" style="margin-top:11px"><button class="btn secondary" data-action="tutorial">Battle Guide</button><button class="btn" data-action="enter-tier">Enter Qualifier</button></div></main>`);
 }
 
 function buildBracket(tierIndex){
-  const t=TIERS[tierIndex],participants=[];
-  participants.push({id:"you",name:user?.displayName||"YOU",team:activeTeam(),isPlayer:true});
-  for(let i=1;i<t.size;i++)participants.push(makeHandler(`${state.run.bracketSeed}-${tierIndex}-${i}`,t.teamSize,t.scale,tierIndex,i));
+  const t=TIERS[tierIndex],handlers=[];
+  handlers.push({id:"you",name:user?.displayName||"YOU",team:activeTeam(),isPlayer:true});
+  for(let i=1;i<t.size;i++){
+    const team=generateEnemyTeam(t.teamSize,t.scale,tierIndex,i);
+    handlers.push({id:`handler-${tierIndex}-${i}`,name:`Handler ${String(i).padStart(3,"0")}`,team,isPlayer:false});
+  }
   const r=mulberry32(hash(`${state.run.bracketSeed}-${tierIndex}`));
-  for(let i=participants.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[participants[i],participants[j]]=[participants[j],participants[i]]}
+  for(let i=handlers.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[handlers[i],handlers[j]]=[handlers[j],handlers[i]]}
   const rounds=[];let count=t.size,roundIndex=0;
   while(count>=2){
     const matches=[];
     for(let i=0;i<count/2;i++){
-      matches.push({id:`r${roundIndex}m${i}`,left:roundIndex===0?participants[i*2]:null,right:roundIndex===0?participants[i*2+1]:null});
+      matches.push({
+        id:`r${roundIndex}m${i}`,
+        left:roundIndex===0?handlers[i*2]:null,
+        right:roundIndex===0?handlers[i*2+1]:null
+      });
     }
     rounds.push(matches);count/=2;roundIndex++;
   }
-  return {participants,rounds};
+  return {participants:handlers,handlers,rounds};
 }
 function bracketBoard(){
   const b=state.run.fullBracket;if(!b)return "";
@@ -277,7 +286,9 @@ function showHandler(id){
 }
 function enterTier(){
   const tier=TIERS[state.run.tier];
-  if(!state.run.fullBracket)state.run.fullBracket=buildBracket(state.run.tier);
+  if(!state.run.fullBracket || !Array.isArray(state.run.fullBracket.handlers) || !state.run.fullBracket.rounds){
+    state.run.fullBracket=buildBracket(state.run.tier);
+  }
   state.run.enemyTeam=generateEnemyTeam(tier.teamSize,tier.scale,state.run.tier,state.run.winsInTier);
   persist();state.screen="bracket";render();
 }
