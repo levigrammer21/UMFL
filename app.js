@@ -1,5 +1,5 @@
 
-import {VERSION,PRIMARY,SECONDARY,ABILITIES,MOVE_LIBRARY,TIERS,REROLL_COSTS,MAX_REROLLS,MAX_ROSTER} from "./data.js";
+import {VERSION,PRIMARY,SECONDARY,ABILITIES,MOVE_LIBRARY,TIERS,PRIMARY_PASSIVES,SECONDARY_PASSIVES,REROLL_COSTS,MAX_REROLLS,MAX_ROSTER} from "./data.js";
 import {watchAuth,googleLogin,emailLogin,emailRegister,logout,loadUserSave,saveUser,publishLeaderboard,fetchLeaderboard} from "./firebase.js";
 import {sfx,startFightMusic,stopFightMusic} from "./sound.js";
 
@@ -65,7 +65,8 @@ function generateMutant(seed,scale=1){
   save.animalsSeen[primary.name]=true;save.animalsSeen[secondary.name]=true;save.abilitiesSeen[ability.name]=true;
   return {
     id:uid("mut"),seed,name,primary:clone(primary),secondary:clone(secondary),ability:clone(ability),
-    stats,moves,record:{wins:0,kos:0,damage:0,recruitedAt:null}
+    stats,moves,primaryPassive:clone(PRIMARY_PASSIVES[primary.name]),secondaryPassive:clone(SECONDARY_PASSIVES[secondary.name]),
+    record:{wins:0,kos:0,damage:0,recruitedAt:null}
   };
 }
 function createStartingMutant(){
@@ -77,6 +78,8 @@ function createStartingMutant(){
     generated.stats[k]=Math.round(primary.stats[k]+secondary.stats[k]);
   }
   if(ability.mods)for(const [k,v] of Object.entries(ability.mods))generated.stats[k]=Math.round(generated.stats[k]*v);
+  generated.primaryPassive=clone(PRIMARY_PASSIVES[primary.name]);
+  generated.secondaryPassive=clone(SECONDARY_PASSIVES[secondary.name]);
   generated.moves=primary.moves.map(name=>({name,...MOVE_LIBRARY[name]}));
   generated.moves[2]={name:secondary.move,...MOVE_LIBRARY[secondary.move]};
   return generated;
@@ -163,11 +166,22 @@ function wheelBlock(kind,label,item){
   <div class="wheel ${state.rolls.spinning===kind?"spinning":""}"><div class="wheel-item">${prev.icon}</div><div class="wheel-item active">${shown.icon}</div><div class="wheel-item">${next.icon}</div></div>
   <div class="wheel-result">${esc(shown.name)}</div><div class="wheel-desc">${esc(desc)}</div></section>`;
 }
+function creationPreview(){
+  if(!state.rolls.primary&&!state.rolls.secondary&&!state.rolls.ability)return "";
+  if(!(state.rolls.primary&&state.rolls.secondary&&state.rolls.ability))return `<div class="card creation-preview"><div class="eyebrow">Mutant analysis</div><p class="muted">Spin all three wheels to reveal projected stats, moves, mutation, and inherited passives.</p></div>`;
+  const temp=createStartingMutant();
+  return `<div class="card creation-preview"><div class="screen-title"><div><div class="eyebrow">Projected mutant</div><h2 style="font-size:17px">${esc(temp.name)}</h2></div></div>
+  <div class="stat-grid">${["hp","atk","def","spd"].map(k=>`<div class="stat">${k.toUpperCase()}<b>${temp.stats[k]}</b></div>`).join("")}</div>
+  <div class="passive-grid"><div class="passive-box"><b>${temp.primary.icon} ${esc(temp.primaryPassive.name)}</b><span>${esc(temp.primaryPassive.desc)}</span></div>
+  <div class="passive-box"><b>${temp.secondary.icon} ${esc(temp.secondaryPassive.name)}</b><span>${esc(temp.secondaryPassive.desc)}</span></div>
+  <div class="passive-box mutation-box"><b>${temp.ability.icon} ${esc(temp.ability.name)}</b><span>${esc(temp.ability.desc)}</span></div></div>
+  <div class="moves">${temp.moves.map(m=>`<div class="move"><div><div class="move-name">${esc(m.name)}</div><div class="move-meta">${moveDescription(m)}</div></div><div><b>${m.power||"—"}</b><div class="move-meta">${Math.round(moveAccuracy(m)*100)}% ACC</div></div></div>`).join("")}</div></div>`;
+}
 function renderWheels(){
   shell(`<main><div class="screen-title"><button class="icon-btn" data-go="home">‹</button><h2>Generation Lab</h2><span></span></div>
   ${wheelBlock("primary","WHEEL 1 · PRIMARY",state.rolls.primary)}
   ${wheelBlock("secondary","WHEEL 2 · SECONDARY",state.rolls.secondary)}
-  ${wheelBlock("ability","WHEEL 3 · MUTATION",state.rolls.ability)}
+  ${wheelBlock("ability","WHEEL 3 · MUTATION",state.rolls.ability)}${creationPreview()}
   <div class="card reroll-bank"><span>Rerolls remaining</span><b>${state.rolls.rerolls}</b></div>
   <div class="grid2"><button class="btn secondary" data-action="tutorial">How to Play</button>
   <button class="btn" data-action="lock-mutant" ${Object.values(state.rolls.spun).every(Boolean)?"":"disabled"}>Lock Mutant</button></div></main>`);
@@ -194,53 +208,67 @@ function lockMutant(){
   if(!Object.values(state.rolls.spun).every(Boolean))return toast("Spin all three wheels first");
   sfx("lock");
   const starter=createStartingMutant();
+  const support=generateMutant(`support-${Date.now()}-${Math.random()}`,.96);
+  support.record.recruitedAt={tier:-1,round:0};
   state.run={
     id:uid("run"),startedAt:Date.now(),tier:0,winsInTier:0,totalWins:0,totalKOs:0,
-    roster:[starter],activeIds:[starter.id],enemyTeam:[],rewardTeam:[],selectedRecruit:null,
+    roster:[starter,support],activeIds:[starter.id,support.id],enemyTeam:[],rewardTeam:[],selectedRecruit:null,
     bracketSeed:Math.random().toString(36).slice(2),completed:false
   };
   persist();state.screen="mutant";render();
 }
+function moveDescription(move){
+  const map={guard:"Reduces incoming damage until next action.",guardStrong:"Strong damage reduction until next action.",
+  area:"Hits every enemy.",areaLow:"Hits every enemy at reduced power.",poison:"May inflict poison.",bleed:"May inflict bleed.",
+  slow:"May reduce speed.",stun:"May push the target backward.",weaken:"May reduce combat effectiveness.",
+  buffAttack:"Raises ATK.",buffAttackDef:"Raises ATK and DEF.",buffTeamAttack:"Raises team ATK.",selfHeal:"Restores HP.",
+  cleanseHeal:"Removes statuses and heals.",teamGuard:"Protects the team.",poisonAll:"Poisons all enemies.",
+  weakenAll:"Weakens all enemies.",slowAll:"Slows all enemies.",doubleHit:"Hits twice.",doubleHitLight:"Two lighter hits.",
+  armorPierce:"Partially ignores DEF.",lifestealMove:"Heals from damage.",counterBuff:"Prepares a counter stance."};
+  return map[move.effect]||`${move.tags.join(" · ")} move`;
+}
 function mutantCard(m,full=true){
-  return `<div class="card"><div class="mutant-summary"><div class="portrait">${portrait(m)}</div><div>
+  return `<div class="card mutant-detail-card"><div class="mutant-summary"><div class="portrait">${portrait(m)}</div><div>
   <div class="mutant-name">${esc(m.name)}</div><div class="genetics">${esc(m.primary.name)} × ${esc(m.secondary.name)}</div>
   <div class="stat-grid">${["hp","atk","def","spd"].map(k=>`<div class="stat">${k.toUpperCase()}<b>${m.stats[k]}</b></div>`).join("")}</div></div></div>
-  <div class="ability"><b>${m.ability.icon} ${esc(m.ability.name)}</b><span class="muted">${esc(m.ability.desc)}</span></div>
-  ${full?`<div class="moves">${m.moves.map(move=>`<div class="move"><div><div class="move-name">${esc(move.name)}</div><div class="move-meta">${move.tags.join(" · ")}</div></div><div><b>${move.power||"—"}</b><div class="move-meta">REC ${move.recovery}</div></div></div>`).join("")}</div>`:""}</div>`;
+  <div class="passive-grid">
+    <div class="passive-box"><b>${m.primary.icon} ${esc(m.primaryPassive?.name||"Primary Passive")}</b><span>${esc(m.primaryPassive?.desc||"")}</span></div>
+    <div class="passive-box"><b>${m.secondary.icon} ${esc(m.secondaryPassive?.name||"Secondary Passive")}</b><span>${esc(m.secondaryPassive?.desc||"")}</span></div>
+    <div class="passive-box mutation-box"><b>${m.ability.icon} ${esc(m.ability.name)}</b><span>${esc(m.ability.desc)}</span></div>
+  </div>
+  ${full?`<div class="moves">${m.moves.map(move=>`<div class="move"><div><div class="move-name">${esc(move.name)}</div><div class="move-meta">${moveDescription(move)}</div></div><div><b>${move.power||"—"}</b><div class="move-meta">${Math.round(moveAccuracy(move)*100)}% ACC · CD ${moveCooldown(move)}</div></div></div>`).join("")}</div>`:""}</div>`;
 }
 function renderMutant(){
-  shell(`<main><div class="screen-title"><button class="icon-btn" data-go="wheels">‹</button><h2>Your Mutant</h2><span></span></div>
-  ${mutantCard(state.run.roster[0])}<div class="grid2" style="margin-top:11px"><button class="btn secondary" data-action="tutorial">Battle Guide</button><button class="btn" data-action="enter-tier">Enter Qualifier</button></div></main>`);
+  const starter=state.run.roster[0],support=state.run.roster[1];
+  shell(`<main><div class="screen-title"><button class="icon-btn" data-go="wheels">‹</button><h2>Opening Team</h2><span></span></div>
+  <div class="eyebrow" style="margin-bottom:7px">Your wheel-generated captain</div>${mutantCard(starter)}
+  <div class="eyebrow" style="margin:14px 0 7px">League-issued partner</div>${mutantCard(support)}
+  <div class="grid2" style="margin-top:11px"><button class="btn secondary" data-action="tutorial">Battle Guide</button><button class="btn" data-action="enter-tier">Enter Qualifier</button></div></main>`);
 }
 
-const HANDLER_FIRST=["Mara","Vex","Rook","Nyx","Dante","Iris","Knox","Sable","Jett","Mako","Vale","Rhea","Crow","Axel","Zara","Bram"];
-const HANDLER_LAST=["Graves","Kane","Mercer","Black","Riot","Voss","Stone","Fang","Cross","Ward","Drake","Ash","Steel","Holt","Raze","Morrow"];
-function makeHandler(seed,teamSize,scale,tier,index){
-  const r=mulberry32(hash(seed));const name=`${choose(HANDLER_FIRST,r)} ${choose(HANDLER_LAST,r)}`;
-  return {id:`handler-${tier}-${index}-${seed}`,name,team:generateEnemyTeam(teamSize,scale,tier,index%TIERS[tier].wins)};
-}
 function buildBracket(tierIndex){
-  const t=TIERS[tierIndex],handlers=[];
-  handlers.push({id:"you",name:user?.displayName||"YOU",team:activeTeam(),isPlayer:true});
-  for(let i=1;i<t.size;i++)handlers.push(makeHandler(`${state.run.bracketSeed}-${tierIndex}-${i}`,t.teamSize,t.scale,tierIndex,i));
-  for(let i=handlers.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[handlers[i],handlers[j]]=[handlers[j],handlers[i]]}
-  return {handlers,rounds:Array.from({length:Math.log2(t.size)},(_,i)=>({name:i===Math.log2(t.size)-1?"Final":`Round ${i+1}`}))};
+  const t=TIERS[tierIndex],participants=[];
+  participants.push({id:"you",name:user?.displayName||"YOU",team:activeTeam(),isPlayer:true});
+  for(let i=1;i<t.size;i++)participants.push(makeHandler(`${state.run.bracketSeed}-${tierIndex}-${i}`,t.teamSize,t.scale,tierIndex,i));
+  const r=mulberry32(hash(`${state.run.bracketSeed}-${tierIndex}`));
+  for(let i=participants.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[participants[i],participants[j]]=[participants[j],participants[i]]}
+  const rounds=[];let count=t.size,roundIndex=0;
+  while(count>=2){
+    const matches=[];
+    for(let i=0;i<count/2;i++){
+      matches.push({id:`r${roundIndex}m${i}`,left:roundIndex===0?participants[i*2]:null,right:roundIndex===0?participants[i*2+1]:null});
+    }
+    rounds.push(matches);count/=2;roundIndex++;
+  }
+  return {participants,rounds};
 }
 function bracketBoard(){
-  const b=state.run.fullBracket,t=TIERS[state.run.tier];
-  if(!b)return "";
-  const columns=b.rounds.map((round,ri)=>{
-    const count=t.size/(2**ri),items=[];
-    for(let i=0;i<count;i++){
-      if(ri===0){
-        const h=b.handlers[i];items.push(`<button class="bracket-entry ${h.isPlayer?"you":""}" data-handler="${h.id}"><span>${h.isPlayer?"★":"♟"}</span><b>${esc(h.name)}</b><small>${h.team.length} mutants</small></button>`);
-      }else{
-        const isPath=i===0;items.push(`<div class="bracket-entry ${isPath?"path":""}"><span>${isPath?"★":"?"}</span><b>${isPath?(user?.displayName||"YOU"):"TBD"}</b><small>${round.name}</small></div>`);
-      }
-    }
-    return `<div class="bracket-column"><h4>${round.name}</h4>${items.join("")}</div>`;
-  }).join("");
-  return `<div class="full-bracket">${columns}</div>`;
+  const b=state.run.fullBracket;if(!b)return "";
+  const labels=b.rounds.map((_,i)=>i===b.rounds.length-1?"FINAL":i===b.rounds.length-2?"SEMIFINAL":i===b.rounds.length-3?"QUARTERFINAL":`ROUND ${i+1}`);
+  return `<div class="bracket-clean">${b.rounds.map((matches,ri)=>`<section class="bracket-round"><h4>${labels[ri]}</h4>
+  ${matches.map((match,mi)=>ri===0?
+  `<div class="match-card"><button data-handler="${match.left.id}" class="${match.left.isPlayer?"you":""}">${match.left.isPlayer?"★":"♟"} ${esc(match.left.name)}</button><span>VS</span><button data-handler="${match.right.id}" class="${match.right.isPlayer?"you":""}">${match.right.isPlayer?"★":"♟"} ${esc(match.right.name)}</button></div>`:
+  `<div class="match-card future"><button>${mi===0?"★ YOUR PATH":"TBD"}</button><span>VS</span><button>TBD</button></div>`).join("")}</section>`).join("")}</div>`;
 }
 function showHandler(id){
   const h=state.run.fullBracket?.handlers.find(x=>x.id===id);if(!h)return;
@@ -299,7 +327,7 @@ function makeCombatant(m,side,index){
     ...clone(m),uid:`${m.id}-${side}-${index}`,side,index,hp:m.stats.hp,maxHp:m.stats.hp,gauge:Math.random()*32,
     alive:true,status:{poison:0,burn:0,bleed:0,slow:0,weaken:0},buff:{atk:0,def:0,crit:0,evasion:0,guard:0},
     flags:{revived:false,lastStand:false,firstGuard:false,phaseHits:0,coldStarted:true},
-    actionCount:0,momentum:0,reactiveDef:0,stolenSpeed:0,cooldowns:{}
+    actionCount:0,momentum:0,reactiveDef:0,stolenSpeed:0,cooldowns:{},lastMove:null,lastTarget:null,passiveCounters:{}
   };
 }
 function startBattle(){
@@ -336,9 +364,18 @@ function effectiveDef(c){
   return Math.max(1,d);
 }
 function applyOpeningEffects(){
+  for(const side of [state.battle.players,state.battle.enemies]){
+    for(const c of side){
+      if(c.primaryPassive?.effect==="primaryPrideLeader")for(const ally of side)ally.buff.atk+=.06;
+      if(c.secondaryPassive?.effect==="secondaryNoxiousAura")for(const foe of foesOf(c))foe.buff.atk-=.04;
+    }
+  }
   for(const c of allCombatants()){
     if(c.ability.effect==="openingPoison")for(const f of living(foesOf(c)))f.status.poison=Math.max(f.status.poison,1);
     if(c.ability.effect==="gaugeSuppress")for(const f of foesOf(c))f.gauge=Math.max(0,f.gauge-12);
+    if(c.secondaryPassive?.effect==="secondaryQuickFeet")c.gauge+=18;
+    if(c.secondaryPassive?.effect==="secondaryShell")c.buff.guard=Math.max(c.buff.guard,.18);
+    if(c.primaryPassive?.effect==="primaryShadowStep")c.buff.evasion+=.12;
   }
 }
 function advanceTimeline(){
@@ -362,7 +399,9 @@ function processStartTurn(c){
   const entries=[["poison",.045,"poison"],["burn",.04,"burn"],["bleed",.035,"bleed"]];
   for(const [key,pct,label] of entries){
     if(c.status[key]>0&&c.alive){
-      const dmg=Math.max(2,Math.round(c.maxHp*pct));rawDamage(c,dmg,null,label);c.status[key]--;
+      let finalPct=pct;
+      if(c.primaryPassive?.effect==="primaryBlubber")finalPct*=.82;
+      const dmg=Math.max(2,Math.round(c.maxHp*finalPct));rawDamage(c,dmg,null,label);c.status[key]--;
     }
   }
   if(c.status.slow>0)c.status.slow--;
@@ -406,8 +445,21 @@ function calculateDamage(actor,target,move){
   if(actor.ability.effect==="quickPower"&&move.tags.includes("quick"))base*=1.25;
   if(actor.ability.effect==="trance"&&(actor.actionCount+1)%3===0)base*=1.45;
   if(actor.ability.effect==="doom")base*=1+actor.actionCount*.1;
+  if(actor.primaryPassive?.effect==="primaryBloodScent"&&target.status.bleed>0)base*=1.15;
+  if(actor.primaryPassive?.effect==="primaryAmbush"&&actor.actionCount===1)base*=1.20;
+  if(actor.primaryPassive?.effect==="primaryStalker"&&target.hp/target.maxHp>.8)base*=1.12;
+  if(actor.primaryPassive?.effect==="primaryPainFueled")base*=1+Math.floor((1-actor.hp/actor.maxHp)*5)*.05;
+  if(actor.primaryPassive?.effect==="primaryTerritorial"&&actor.hp/actor.maxHp<.35)base*=1.12;
+  if(actor.primaryPassive?.effect==="primaryCombo"&&actor.lastMove&&actor.lastMove!==move.name)base*=1.08;
+  if(actor.primaryPassive?.effect==="primaryPackInstinct")base*=1+.07*(living(alliesOf(actor)).length-1);
+  if(actor.secondaryPassive?.effect==="secondaryImproviser"){const minCd=Math.min(...actor.moves.map(m=>moveCooldown(m)));if(moveCooldown(move)===minCd)base*=1.08}
+  if(actor.secondaryPassive?.effect==="secondaryCoilingPressure"&&target.status.slow>0)base*=1.07;
   if(actor.status.weaken>0)base*=.86;
   if(target.ability.effect==="fragile")base*=1.12;
+  if(target.primaryPassive?.effect==="primaryMassiveFrame"&&move.tags.includes("area"))base*=.82;
+  if(target.primaryPassive?.effect==="primaryHerdWall"){const idx=alliesOf(target).indexOf(target),adj=[alliesOf(target)[idx-1],alliesOf(target)[idx+1]].filter(Boolean).some(x=>x.alive);if(adj)base*=.92}
+  if(target.primaryPassive?.effect==="primaryThickFur"&&(target.passiveCounters.thickFur||0)<2){target.passiveCounters.thickFur=(target.passiveCounters.thickFur||0)+1;base*=.88}
+  if(target.secondaryPassive?.effect==="secondaryUndergroundCover"&&move.tags.includes("area")&&!target.passiveCounters.underground){target.passiveCounters.underground=true;base*=.75}
   if(target.flags.coldStarted&&target.ability.effect==="coldStart")base*=.75;
   if(target.buff.guard>0)base*=1-target.buff.guard;
   if(target.ability.effect==="firstGuard"&&!target.flags.firstGuard){target.flags.firstGuard=true;base*=.4}
@@ -423,6 +475,12 @@ function moveAccuracy(move){
   if(move.power>=42)return .86;
   return .91;
 }
+function adjustedRecovery(actor,move){
+  let recovery=move.recovery;
+  if(actor.secondaryPassive?.effect==="secondaryDirtyTactics"&&(move.tags.includes("utility")||move.tags.includes("guard")))recovery*=.88;
+  if(actor.secondaryPassive?.effect==="secondaryHyperactive")recovery*=.90;
+  return recovery;
+}
 function moveCooldown(move){
   if(move.tags.includes("utility")||move.tags.includes("guard"))return move.recovery>=80?2:1;
   if(move.power>=48||move.recovery>=110)return 3;
@@ -431,6 +489,9 @@ function moveCooldown(move){
 }
 function hitResult(actor,target,move){
   let accuracy=moveAccuracy(move),evade=target.buff.evasion+(target.ability.effect==="evade"?.19:0);
+  if(actor.primaryPassive?.effect==="primaryHighGround"&&move.tags.includes("quick"))accuracy+=.08;
+  if(actor.secondaryPassive?.effect==="secondaryEcholocation")accuracy=Math.max(accuracy,.70);
+  if(actor.secondaryPassive?.effect==="secondaryTargetLock"&&actor.lastTarget===target.uid)accuracy+=.06;
   if(target.ability.effect==="phase"&&target.flags.phaseHits<2){target.flags.phaseHits++;evade+=.45}
   const roll=Math.random(),hitChance=clamp(accuracy-evade,.2,.99);
   if(roll<=hitChance)return "hit";
@@ -441,13 +502,17 @@ function directHit(actor,target,move,mult=1){
   if(!target.alive)return 0;
   const result=hitResult(actor,target,move);
   if(result==="miss"){state.battle.log.push(`${actor.name}'s ${move.name} misses ${target.name}.`);sfx("miss");return 0}
-  const calc=calculateDamage(actor,target,move);let dmg=Math.round(calc.amount*mult*(result==="glance"?.38:1));
+  const calc=calculateDamage(actor,target,move);let glanceMult=result==="glance"?.38:1;
+  if(result==="glance"&&target.secondaryPassive?.effect==="secondaryElasticBody")glanceMult*=.8;
+  let dmg=Math.round(calc.amount*mult*glanceMult);
+  if(calc.crit&&target.secondaryPassive?.effect==="secondarySideArmor")dmg=Math.round(dmg*.8);
   target.hp=Math.max(0,target.hp-dmg);
   state.battle.log.push(`${actor.name} uses ${move.name}: ${dmg}${result==="glance"?" GLANCING":calc.crit?" CRIT":""}.`);
   sfx(result==="glance"?"glance":calc.crit?"crit":"hit");
+  actor.lastTarget=target.uid;
   if(actor.side==="player"){save.damageDealt+=dmg;actor.record.damage=(actor.record.damage||0)+dmg}
   else save.damageTaken+=dmg;
-  applyOnHit(actor,target,move,dmg);
+  applyOnHit(actor,target,move,dmg,calc);
   if(target.hp<=0)knockout(target,actor);
   if(target.alive&&target.ability.effect==="counter"&&Math.random()<.22){
     const counter=Math.max(1,Math.round(target.stats.atk*.18));actor.hp=Math.max(0,actor.hp-counter);
@@ -455,7 +520,7 @@ function directHit(actor,target,move,mult=1){
   }
   return dmg;
 }
-function applyOnHit(actor,target,move,dmg){
+function applyOnHit(actor,target,move,dmg,calc){
   const chance=move.chance??1;
   if(move.effect==="poison"&&Math.random()<chance)target.status.poison=Math.max(target.status.poison,3);
   if(move.effect==="bleed"&&Math.random()<chance)target.status.bleed=Math.max(target.status.bleed,3);
@@ -475,14 +540,22 @@ function applyOnHit(actor,target,move,dmg){
     state.battle.log.push(`${actor.name} takes ${reflected} reflected damage.`);if(actor.hp<=0)knockout(actor,target);
   }
   if(target.ability.effect==="reactiveDef")target.reactiveDef=Math.min(.32,target.reactiveDef+.08);
+  if(actor.secondaryPassive?.effect==="secondaryBarbedTail"&&Math.random()<.12)target.status.poison=Math.max(target.status.poison,2);
+  if(actor.secondaryPassive?.effect==="secondaryPrecisionBlades"&&calc.crit)target.status.bleed=Math.max(target.status.bleed,1);
+  if(actor.secondaryPassive?.effect==="secondaryDiveMomentum"&&move.effect==="priority")actor.gauge+=8;
+  if(target.primaryPassive?.effect==="primaryRebound")target.gauge+=7;
+  if(target.primaryPassive?.effect==="primaryColdPressure")actor.gauge=Math.max(0,actor.gauge-4);
+  if(target.secondaryPassive?.effect==="secondaryQuillCoat"){const r=Math.max(1,Math.round(dmg*.06));actor.hp=Math.max(0,actor.hp-r)}
+  if(actor.secondaryPassive?.effect==="secondaryRestless"&&dmg===0)actor.gauge+=16;
   if(actor.ability.effect==="execution"&&target.alive&&target.hp/target.maxHp<=.12)knockout(target,actor);
 }
+const EXTRA_AOE=new Set(["Ground Pound","Stampede","Earthshaker","Wave Crash","Quill Burst","Sonic Screech","Musk Cloud","Stomp"]);
 function resolveMove(actor,target,move){
   actor.actionCount++;actor.flags.coldStarted=false;
   actor.buff.guard=0;
   if(move.tags.includes("guard")||move.tags.includes("utility")){
     resolveUtility(actor,target,move);
-  }else if(move.effect==="area"||move.effect==="areaLow"){
+  }else if(move.effect==="area"||move.effect==="areaLow"||EXTRA_AOE.has(move.name)){
     const mult=move.effect==="areaLow"?.72:.86;for(const foe of living(foesOf(actor)))directHit(actor,foe,move,mult);
   }else if(move.effect==="poisonAll"||move.effect==="weakenAll"||move.effect==="slowAll"){
     for(const foe of living(foesOf(actor))){if(move.power)directHit(actor,foe,move,.62);
@@ -500,19 +573,28 @@ function resolveMove(actor,target,move){
   if(actor.ability.effect==="unstable")rawDamage(actor,Math.round(actor.maxHp*.03),actor,"core backlash");
   if(actor.ability.effect==="bloodPrice")rawDamage(actor,Math.round(actor.maxHp*.06),actor,"blood price");
   if(actor.ability.effect==="momentum")actor.momentum=Math.min(5,actor.momentum+1);
-  actor.cooldowns[move.name]=moveCooldown(move);
-  actor.gauge-=move.recovery*.42;
+  actor.cooldowns[move.name]=moveCooldown(move);actor.lastMove=move.name;
+  actor.gauge-=adjustedRecovery(actor,move)*.42;
   if(actor.gauge<0)actor.gauge=0;
 }
+const FLAVOR=[
+(a,m)=>`${a.name} uses ${m.name}. The crowd pretends it understood the plan.`,
+(a,m)=>`${a.name} deploys ${m.name}. A rules official quietly updates the waiver.`,
+(a,m)=>`${a.name} chooses ${m.name}. The handler nods like this was inevitable.`,
+(a,m)=>`${a.name} performs ${m.name}. The front row reconsiders its seating choice.`,
+(a,m)=>`${a.name} uses ${m.name}. Strategy has entered the cage, apparently.`,
+(a,m)=>`${a.name} executes ${m.name}. Nobody is sure whether that was legal.`
+];
+function flavorLine(actor,move){return choose(FLAVOR)(actor,move)}
 function resolveUtility(actor,target,move){
   switch(move.effect){
-    case"guard":actor.buff.guard=.42;break;case"guardStrong":actor.buff.guard=.55;break;
+    case"guard":actor.buff.guard=.52;break;case"guardStrong":actor.buff.guard=.66;break;
     case"fortify":actor.buff.guard=.45;actor.buff.def=Math.min(.35,actor.buff.def+.15);break;
     case"guardHeal":actor.buff.guard=.38;actor.hp=Math.min(actor.maxHp,actor.hp+Math.round(actor.maxHp*.1));break;
-    case"teamGuard":for(const a of living(alliesOf(actor)))a.buff.guard=Math.max(a.buff.guard,.25);break;
-    case"buffAttack":actor.buff.atk=Math.min(.45,actor.buff.atk+.18);break;
-    case"buffAttackDef":actor.buff.atk=Math.min(.35,actor.buff.atk+.12);actor.buff.def=Math.min(.35,actor.buff.def+.12);break;
-    case"buffTeamAttack":for(const a of living(alliesOf(actor)))a.buff.atk=Math.min(.35,a.buff.atk+.1);break;
+    case"teamGuard":for(const a of living(alliesOf(actor)))a.buff.guard=Math.max(a.buff.guard,.38);break;
+    case"buffAttack":actor.buff.atk=Math.min(.55,actor.buff.atk+.24);break;
+    case"buffAttackDef":actor.buff.atk=Math.min(.45,actor.buff.atk+.18);actor.buff.def=Math.min(.45,actor.buff.def+.18);break;
+    case"buffTeamAttack":for(const a of living(alliesOf(actor)))a.buff.atk=Math.min(.42,a.buff.atk+.14);break;
     case"buffCrit":actor.buff.crit=Math.min(.35,actor.buff.crit+.15);break;
     case"buffAccuracy":actor.buff.crit=Math.min(.25,actor.buff.crit+.08);break;
     case"buffAccuracyCrit":actor.buff.crit=Math.min(.32,actor.buff.crit+.12);break;
@@ -524,7 +606,10 @@ function resolveUtility(actor,target,move){
     case"weakenAll":for(const f of living(foesOf(actor)))f.status.weaken=Math.max(f.status.weaken,2);break;
     case"weaken":if(target)target.status.weaken=Math.max(target.status.weaken,2);break;
   }
-  state.battle.log.push(`${actor.name} uses ${move.name}.`);
+  if(actor.primaryPassive?.effect==="primaryHeavyHands")actor.buff.atk=Math.min(.5,actor.buff.atk+.10);
+  if(actor.primaryPassive?.effect==="primaryApexCoordination"){const fastest=living(alliesOf(actor)).sort((a,b)=>effectiveSpeed(b)-effectiveSpeed(a))[0];if(fastest)fastest.gauge+=12}
+  if(actor.primaryPassive?.effect==="primaryWideGuard"&&move.tags.includes("guard")){const low=living(alliesOf(actor)).sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp)[0];if(low&&low!==actor)low.buff.guard=Math.max(low.buff.guard,actor.buff.guard*.5)}
+  state.battle.log.push(flavorLine(actor,move));
 }
 function choosePlayerMove(index){
   const b=state.battle,actor=b.turn;if(!actor||actor.side!=="player"||b.processing)return;
@@ -552,8 +637,8 @@ function fighterHTML(c){
   const statuses=[c.status.poison?"☠️":"",c.status.burn?"🔥":"",c.status.bleed?"🩸":"",c.status.slow?"🐌":"",c.status.weaken?"⬇️":""].join("");
   const targetable=c.side==="enemy"&&state.battle.turn?.side==="player";
   return `<div class="fighter ${!c.alive?"dead":""} ${state.battle.turn?.uid===c.uid?"active":""} ${targetable?"targetable":""}" ${targetable?`data-target="${c.uid}"`:""}>
-  <div class="hp"><i style="width:${c.hp/c.maxHp*100}%"></i></div><div class="portrait">${portrait(c,true)}</div>
-  <div class="energy"><i style="width:${clamp(c.gauge,0,100)}%"></i></div><div class="fighter-name">${esc(c.name)}</div><div class="statuses">${statuses}</div></div>`;
+  <div class="portrait">${portrait(c,true)}</div><div class="fighter-bars"><div class="hp"><i style="width:${c.hp/c.maxHp*100}%"></i></div><div class="energy"><i style="width:${clamp(c.gauge,0,100)}%"></i></div></div>
+  <div class="fighter-name">${esc(c.name)}</div><div class="statuses">${statuses}</div></div>`;
 }
 function projectedTurns(){
   return living(allCombatants()).sort((a,b)=>(100-a.gauge)/effectiveSpeed(a)-(100-b.gauge)/effectiveSpeed(b)).slice(0,8);
@@ -563,12 +648,14 @@ function renderBattle(){
   const targets=actor?.side==="player"?living(b.enemies):[];
   const controls=actor?.side==="player"?`<div class="target-strip">${targets.map(t=>`<button class="target-btn ${b.selectedTarget===t.uid?"selected":""}" data-target="${t.uid}">${esc(t.name)} · ${Math.ceil(t.hp/t.maxHp*100)}%</button>`).join("")}</div>
   <div class="action-grid">${actor.moves.map((m,i)=>{const cd=actor.cooldowns[m.name]||0,acc=Math.round(moveAccuracy(m)*100),cool=moveCooldown(m);
-  return `<button class="action-btn ${cd?"cooling":""}" data-move="${i}" ${cd?"disabled":""}><b>${esc(m.name)}</b><small>${m.power?`Power ${m.power}`:"Utility"} · ${acc}% accuracy<br>Recovery ${m.recovery} · Cooldown ${cool}${cd?` · ${cd} turn${cd===1?"":"s"} left`:""}</small></button>`}).join("")}</div>`
-  :`<div class="card" style="text-align:center"><b>${actor?"Enemy choosing…":"Timeline advancing…"}</b></div>`;
-  shell(`<main><div class="battle-top"><button class="icon-btn" data-action="forfeit">×</button><div><div class="eyebrow">${TIERS[state.run.tier].name}</div><b>Round ${state.run.winsInTier+1}</b></div><span>${living(b.players).length}–${living(b.enemies).length}</span></div>
-  <div class="battle-stage"><div class="battle-side left">${b.players.map(fighterHTML).join("")}</div><div class="battle-side right">${b.enemies.map(fighterHTML).join("")}</div></div>
-  <div class="turnbar">${projectedTurns().map(c=>`<div class="turn-chip">${portrait(c,true)}</div>`).join("")}</div>
-  <div class="combat-log">${b.log.slice(-12).join("<br>")}</div><div class="action-panel">${controls}</div></main>`);
+  return `<button class="action-btn ${cd?"cooling":""}" data-move="${i}" ${cd?"disabled":""}><b>${esc(m.name)}</b><small>${moveDescription(m)}<br>${m.power?`Power ${m.power}`:"Utility"} · ${acc}% accuracy · Recovery ${Math.round(adjustedRecovery(actor,m))}<br>Cooldown ${cool}${cd?` · ${cd} turn${cd===1?"":"s"} left`:""}</small></button>`}).join("")}</div>`
+  :`<div class="card" style="text-align:center"><b>${actor?"Enemy handler is thinking…":"Timeline advancing…"}</b></div>`;
+  shell(`<main><div class="battle-top"><button class="icon-btn" data-action="forfeit">×</button><div><div class="eyebrow">${TIERS[state.run.tier].name}</div><b>Round ${state.run.winsInTier+1}</b></div><button class="small-btn" data-action="tutorial">?</button></div>
+  <div class="battle-stage vertical-stage"><div class="battle-side left vertical-team">${b.players.map(fighterHTML).join("")}</div>
+  <div class="center-log"><div class="center-log-title">CAGE FEED</div><div class="combat-log">${b.log.slice(-14).join("<br>")}</div></div>
+  <div class="battle-side right vertical-team">${b.enemies.map(fighterHTML).join("")}</div></div>
+  <div class="turnbar">${projectedTurns().map(c=>`<div class="turn-chip ${actor?.uid===c.uid?"current-turn":""}">${portrait(c,true)}</div>`).join("")}</div>
+  <div class="action-panel">${controls}</div></main>`);
 }
 function finishBattle(){
   stopFightMusic();
@@ -682,6 +769,8 @@ function openTutorial(){
   <div class="guide-section"><h3>Recovery and cooldown</h3><p><b>Recovery</b> is the timeline cost after using a move. A high-recovery move pushes that mutant farther back before its next action. <b>Cooldown</b> prevents repeating the same powerful move every action. Cooldowns count down when that mutant receives a turn.</p></div>
   <div class="guide-section"><h3>Accuracy, misses, glancing blows, and crits</h3><p>Every attack has an accuracy value. Fast attacks are usually accurate; huge attacks are less reliable. A near miss becomes a <b>glancing blow</b> for reduced damage. Critical hits usually deal 175% damage. Evasion lowers an attacker's final hit chance.</p></div>
   <div class="guide-section"><h3>Status effects</h3><p>☠️ Poison, 🔥 Burn, and 🩸 Bleed deal damage at the start of turns. 🐌 Slow reduces action-gauge speed. ⬇️ Weaken reduces combat performance.</p></div>
+  <div class="guide-section"><h3>Inherited passives</h3><p>Every primary and secondary animal contributes a separate passive. These stack with the rolled mutation, giving each mutant three identity-defining effects.</p></div>
+  <div class="guide-section"><h3>Strategy and utility</h3><p>Teams grow from 2v2 to 4v4. Guarding, team buffs, healing, debuffs, action-gauge control, area attacks, and focus fire become essential. Heavy attacks have larger cooldown and recovery costs.</p></div>
   <div class="guide-section"><h3>Mutations</h3><p>Tap any mutant in scouting or roster screens to inspect its fixed mutation and move details. Mutations include stat changes, counters, healing, status application, revival, speed effects, and risk/reward mechanics.</p></div>
   <button class="btn" data-modal-close>Close Manual</button></div></div>`;
 }

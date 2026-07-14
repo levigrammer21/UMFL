@@ -1,5 +1,5 @@
 
-export const VERSION="v1.1.0";
+export const VERSION="v1.2.0";
 
 export const PRIMARY=[
 {name:"Bear",icon:"🐻",archetype:"Juggernaut",stats:{hp:150,atk:116,def:119,spd:67},moves:["Maul","Crushing Swipe","Hibernating Guard","Roar"]},
@@ -228,14 +228,70 @@ export const MOVE_LIBRARY={
 };
 
 export const TIERS=[
-{name:"Qualifier",size:4,teamSize:1,wins:2,scale:.78,credit:25},
+{name:"Qualifier",size:4,teamSize:2,wins:2,scale:.78,credit:25},
 {name:"Bronze",size:8,teamSize:2,wins:3,scale:.90,credit:35},
 {name:"Silver",size:16,teamSize:3,wins:4,scale:1.00,credit:45},
 {name:"Gold",size:32,teamSize:3,wins:5,scale:1.12,credit:60},
-{name:"Platinum",size:64,teamSize:3,wins:6,scale:1.24,credit:80},
-{name:"Elite",size:128,teamSize:3,wins:7,scale:1.38,credit:110},
-{name:"Championship",size:256,teamSize:3,wins:8,scale:1.55,credit:160}
+{name:"Platinum",size:64,teamSize:4,wins:6,scale:1.24,credit:80},
+{name:"Elite",size:128,teamSize:4,wins:7,scale:1.38,credit:110},
+{name:"Championship",size:256,teamSize:4,wins:8,scale:1.55,credit:160}
 ];
+
+export const PRIMARY_PASSIVES={
+"Bear":{name:"Thick Fur",desc:"Reduces the first two direct hits by 12%.",effect:"primaryThickFur"},
+"Wolf":{name:"Pack Instinct",desc:"Gains 7% ATK for each living ally.",effect:"primaryPackInstinct"},
+"Shark":{name:"Blood Scent",desc:"Deals 15% more damage to bleeding enemies.",effect:"primaryBloodScent"},
+"Tiger":{name:"Ambush Predator",desc:"First damaging move each battle gains 20% power.",effect:"primaryAmbush"},
+"Gorilla":{name:"Heavy Hands",desc:"Utility moves grant 10% ATK.",effect:"primaryHeavyHands"},
+"Rhino":{name:"Unstoppable",desc:"Action-gauge disruption against this mutant is reduced.",effect:"primaryUnstoppable"},
+"Crocodile":{name:"Death Grip",desc:"Its slow effects are especially punishing.",effect:"primaryDeathGrip"},
+"Lion":{name:"Pride Leader",desc:"All allies begin with +6% ATK.",effect:"primaryPrideLeader"},
+"Elephant":{name:"Massive Frame",desc:"Area attacks deal 18% less damage.",effect:"primaryMassiveFrame"},
+"Hippo":{name:"Territorial Rage",desc:"Gains damage while critically wounded.",effect:"primaryTerritorial"},
+"Panther":{name:"Shadow Step",desc:"Begins battle with 12% evasion.",effect:"primaryShadowStep"},
+"Boar":{name:"Pain Fueled",desc:"Losing HP steadily raises ATK.",effect:"primaryPainFueled"},
+"Bison":{name:"Herd Wall",desc:"Takes less damage while beside a living ally.",effect:"primaryHerdWall"},
+"Komodo":{name:"Septic Bite",desc:"Its poison deals 20% more damage.",effect:"primarySeptic"},
+"Hyena":{name:"Opportunist",desc:"Gains action gauge when an enemy is knocked out.",effect:"primaryOpportunist"},
+"Moose":{name:"Wide Guard",desc:"Guard moves also protect the weakest ally.",effect:"primaryWideGuard"},
+"Orca":{name:"Apex Coordination",desc:"Utility moves accelerate the fastest ally.",effect:"primaryApexCoordination"},
+"Cobra":{name:"Neurotoxin",desc:"Poisoned targets are also slowed.",effect:"primaryNeurotoxin"},
+"Eagle":{name:"High Ground",desc:"Quick moves gain accuracy and power.",effect:"primaryHighGround"},
+"Ram":{name:"Rebound Skull",desc:"Taking direct damage grants action gauge.",effect:"primaryRebound"},
+"Jaguar":{name:"Stalker",desc:"Deals more damage to healthy targets.",effect:"primaryStalker"},
+"Walrus":{name:"Blubber",desc:"Damage-over-time effects deal less damage.",effect:"primaryBlubber"},
+"Kangaroo":{name:"Combination Fighter",desc:"Alternating moves raises damage.",effect:"primaryCombo"},
+"Buffalo":{name:"Stampede Rhythm",desc:"Area attacks accelerate all allies.",effect:"primaryStampedeRhythm"},
+"Polar Bear":{name:"Cold Pressure",desc:"Attackers lose a little action gauge.",effect:"primaryColdPressure"}
+};
+
+export const SECONDARY_PASSIVES={
+"Rabbit":{name:"Quick Feet",desc:"Starts battle with 18 action gauge.",effect:"secondaryQuickFeet"},
+"Owl":{name:"Analysis",desc:"Gains 5% critical-hit chance.",effect:"secondaryAnalysis"},
+"Gopher":{name:"Underground Cover",desc:"First area hit taken deals 25% less damage.",effect:"secondaryUndergroundCover"},
+"Crow":{name:"Dirty Tactics",desc:"Utility moves have 12% shorter recovery.",effect:"secondaryDirtyTactics"},
+"Scorpion":{name:"Barbed Tail",desc:"Direct hits have a 12% chance to poison.",effect:"secondaryBarbedTail"},
+"Porcupine":{name:"Quill Coat",desc:"Reflects 6% direct damage.",effect:"secondaryQuillCoat"},
+"Bat":{name:"Echolocation",desc:"Final accuracy cannot fall below 70%.",effect:"secondaryEcholocation"},
+"Frog":{name:"Elastic Body",desc:"Glancing blows deal 20% less damage.",effect:"secondaryElasticBody"},
+"Mantis":{name:"Precision Blades",desc:"Critical hits inflict bleed.",effect:"secondaryPrecisionBlades"},
+"Turtle":{name:"Shell",desc:"Begins battle with 18% guard.",effect:"secondaryShell"},
+"Rat":{name:"Survivor",desc:"Healing received is increased by 15%.",effect:"secondarySurvivor"},
+"Fox":{name:"Feinting Instinct",desc:"Utility use grants temporary evasion.",effect:"secondaryFeint"},
+"Hawk":{name:"Target Lock",desc:"Repeated attacks on one target gain accuracy.",effect:"secondaryTargetLock"},
+"Badger":{name:"Tenacity",desc:"Negative statuses expire faster.",effect:"secondaryTenacity"},
+"Lizard":{name:"Regrowth",desc:"Cleansing a status restores HP.",effect:"secondaryRegrowth"},
+"Snake":{name:"Coiling Pressure",desc:"Slowed enemies deal less damage.",effect:"secondaryCoilingPressure"},
+"Raccoon":{name:"Improviser",desc:"Low-cooldown moves gain power.",effect:"secondaryImproviser"},
+"Squirrel":{name:"Restless",desc:"A miss grants action gauge.",effect:"secondaryRestless"},
+"Crab":{name:"Side Armor",desc:"Critical damage taken is reduced.",effect:"secondarySideArmor"},
+"Hummingbird":{name:"Hyperactive",desc:"Recovery penalties are 10% smaller.",effect:"secondaryHyperactive"},
+"Mole":{name:"Ground Sense",desc:"Cannot be stunned while guarding.",effect:"secondaryGroundSense"},
+"Bee":{name:"Swarm Signal",desc:"Being poisoned accelerates allies.",effect:"secondarySwarmSignal"},
+"Chameleon":{name:"Adaptive Skin",desc:"Receiving a status temporarily raises DEF.",effect:"secondaryAdaptiveSkin"},
+"Skunk":{name:"Noxious Aura",desc:"Enemies begin with 4% less ATK.",effect:"secondaryNoxiousAura"},
+"Falcon":{name:"Dive Momentum",desc:"Priority moves grant action gauge on hit.",effect:"secondaryDiveMomentum"}
+};
 
 export const REROLL_COSTS={primary:150,secondary:100,ability:125};
 export const MAX_REROLLS=2;

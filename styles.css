@@ -197,3 +197,26 @@ display:grid;grid-template-columns:20px 1fr;grid-template-rows:auto auto;text-al
 .guide-section{border-left:3px solid var(--gold);padding:1px 0 1px 12px;margin:14px 0}
 .guide-section h3{margin:0 0 5px;color:var(--gold2)}.guide-section p{margin:0;color:#c1cbd0;line-height:1.5;font-size:13px}
 .btn:disabled{opacity:.38;filter:grayscale(.6)}
+
+:root{--prism1:#8d5cff;--prism2:#20d6ff;--prism3:#ff4f9d;--prism4:#55ff9a}
+body:before{opacity:.28;background:radial-gradient(circle at 8% 8%,rgba(141,92,255,.7) 0,transparent 18%),radial-gradient(circle at 92% 18%,rgba(32,214,255,.55) 0,transparent 22%),radial-gradient(circle at 75% 80%,rgba(255,79,157,.42) 0,transparent 25%),radial-gradient(circle at 12% 88%,rgba(85,255,154,.24) 0,transparent 24%)}
+.creation-preview{margin-bottom:11px;background:linear-gradient(145deg,#151c29,#122428 55%,#281823)}
+.passive-grid{display:grid;gap:7px;margin-top:10px}
+.passive-box{padding:10px;border:1px solid #39495c;border-radius:10px;background:linear-gradient(135deg,#121a22,#171425)}
+.passive-box:nth-child(2){background:linear-gradient(135deg,#102124,#162015)}
+.passive-box.mutation-box{border-color:#66478a;background:linear-gradient(135deg,#22152c,#161d25)}
+.passive-box b{display:block;color:var(--gold2);font-size:12px}.passive-box span{display:block;color:#b9c6cc;font-size:11px;margin-top:3px;line-height:1.4}
+.vertical-stage{height:470px;display:grid;grid-template-columns:28% 44% 28%;align-items:stretch;padding:8px}
+.vertical-stage .battle-side{position:static!important;width:auto!important;display:flex!important;flex-direction:column;justify-content:space-around!important;gap:5px;min-width:0}
+.vertical-team .fighter{width:100%;max-width:none;display:grid;grid-template-columns:36px 1fr;grid-template-rows:auto auto auto;column-gap:5px;align-items:center;text-align:left}
+.vertical-team .fighter .portrait{grid-row:1/4;width:36px;height:36px}.vertical-team .fighter-bars{grid-column:2}.vertical-team .fighter-name{grid-column:2;font-size:8px}.vertical-team .statuses{grid-column:2;height:12px}
+.vertical-team .fighter.active{filter:drop-shadow(0 0 9px var(--gold2))}.vertical-team .fighter.active .portrait{animation:activePulse .65s ease-in-out infinite alternate}
+@keyframes activePulse{to{box-shadow:0 0 18px var(--gold),0 0 28px var(--prism2);transform:scale(1.08)}}
+.center-log{min-width:0;margin:0 5px;border:1px solid #3a4557;border-radius:12px;background:rgba(6,9,13,.82);display:flex;flex-direction:column;overflow:hidden}
+.center-log-title{text-align:center;padding:6px;background:linear-gradient(90deg,#251b40,#123744,#3b1832);font-size:9px;font-weight:1000;letter-spacing:.14em;color:var(--gold2)}
+.center-log .combat-log{height:auto;flex:1;border:0;border-radius:0;background:transparent;font-size:9px;padding:7px;line-height:1.42}.current-turn{border-color:var(--gold)!important;box-shadow:0 0 12px rgba(241,184,59,.45)}
+.bracket-clean{display:flex;gap:10px;overflow:auto;padding:8px 0 14px;scroll-snap-type:x mandatory}.bracket-round{min-width:190px;scroll-snap-align:start}
+.bracket-round h4{margin:0 0 7px;color:var(--gold2);font-size:11px;letter-spacing:.08em}.match-card{border:1px solid var(--line);border-radius:10px;background:#0b1114;padding:6px;margin-bottom:7px;display:grid;grid-template-columns:1fr 24px 1fr;align-items:center}
+.match-card button{border:0;background:#121b20;color:white;border-radius:7px;padding:8px 5px;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.match-card button.you{background:linear-gradient(135deg,#403111,#342044);color:var(--gold2)}
+.match-card span{text-align:center;color:var(--muted);font-size:8px}.match-card.future{opacity:.62}
+@media(max-width:390px){.vertical-stage{height:445px;grid-template-columns:27% 46% 27%}.center-log .combat-log{font-size:8px}}

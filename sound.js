@@ -3,14 +3,14 @@ let ctx=null,master=null,musicTimer=null,musicStep=0,musicOn=false;
 function ensure(){
   if(ctx)return;
   ctx=new (window.AudioContext||window.webkitAudioContext)();
-  master=ctx.createGain();master.gain.value=.24;master.connect(ctx.destination);
+  master=ctx.createGain();master.gain.value=.78;master.connect(ctx.destination);
 }
-function tone(freq=220,dur=.08,type="square",gain=.08,when=0){
+function tone(freq=220,dur=.08,type="square",gain=.18,when=0){
   ensure();const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+when;
   o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(gain,t);
   g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur);
 }
-function noise(dur=.08,gain=.08){
+function noise(dur=.08,gain=.18){
   ensure();const len=Math.floor(ctx.sampleRate*dur),buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
   for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
   const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=buf;g.gain.value=gain;s.connect(g);g.connect(master);s.start();
@@ -35,8 +35,8 @@ export function startFightMusic(enabled=true){
   const bass=[55,55,65.4,55,73.4,65.4,55,49];
   musicTimer=setInterval(()=>{
     if(!musicOn)return;
-    const f=bass[musicStep%bass.length];tone(f,.22,"sawtooth",.028);tone(f*2,.07,"square",.015,.11);
-    if(musicStep%2===0)noise(.025,.018);
+    const f=bass[musicStep%bass.length];tone(f,.25,"sawtooth",.09);tone(f*2,.09,"square",.052,.11);tone(f*1.5,.08,"triangle",.03,.18);
+    if(musicStep%2===0)noise(.04,.055);
     musicStep++;
   },280);
 }
